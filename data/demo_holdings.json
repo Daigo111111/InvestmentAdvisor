@@ -1,0 +1,18 @@
+{
+  "_comment": "示例持仓（演示/校招展示用，非真实持仓）。基金可只填 amount(持有金额)+profit(持有收益)，也可填 shares+cost_nav+lots。",
+  "funds": [
+    {"code": "005827", "amount": 30000, "profit": -2100, "buy_date": "2025-03-12"},
+    {"code": "161725", "shares": 12000, "cost_nav": 0.92, "lots": [{"date": "2025-06-01", "shares": 8000}, {"date": "2026-11-04", "shares": 4000}]},
+    {"code": "320007", "amount": 25000, "profit": 6200, "buy_date": "2025-09-20"},
+    {"code": "090010", "amount": 20000, "profit": 1500, "buy_date": "2024-12-02"},
+    {"code": "000171", "amount": 15000, "profit": 420, "buy_date": "2025-01-15"},
+    {"code": "012348", "amount": 8000, "profit": -600}
+  ],
+  "stocks": [
+    {"code": "600900", "name": "长江电力", "shares": 500, "cost": 27.5, "buy_date": "2025-04-10"},
+    {"code": "600519", "name": "贵州茅台", "shares": 10, "cost": 1520, "buy_date": "2025-08-01"},
+    {"code": "300750", "name": "宁德时代", "shares": 100, "cost": 262, "buy_date": "2026-10-20"}
+  ],
+  "cash": 20000,
+  "settings": {"max_drawdown": 0.20, "target_return": 0.20, "min_return": 0.07}
+}
