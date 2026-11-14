@@ -17,6 +17,7 @@ export function home(rep) {
       <div class="kv"><span class="muted small">累计收益</span><b class="${cls(pf.ret)}">${pct(pf.ret)}</b></div>
       <div class="kv"><span class="muted small">当前回撤</span><b class="${cls(pf.drawdown)}">${pct(pf.drawdown)}</b></div>
     </div>
+    ${pf.realized ? `<div class="small" style="margin-top:6px">已实现收益 <b class="${cls(pf.realized)}">${money(pf.realized)}</b> 元 · 浮动盈亏 <b class="${cls(pf.pnl)}">${money(pf.pnl)}</b> 元 · 合计 <b class="${cls(pf.total_pnl)}">${money(pf.total_pnl)}</b> 元</div>` : ''}
     <div class="muted small" style="margin-top:6px">基金 ${money(pf.funds)} · 股票 ${money(pf.stocks)} · 现金 ${money(pf.cash)} ·
       回撤上限 ${pct(-(rep.meta?.risk?.max_drawdown ?? 0.2), 0)}</div>
     ${hist.length > 1 ? curve : ''}
@@ -51,7 +52,9 @@ export function funds(rep) {
       </div>
       ${f.action !== '不动' ? `<div style="margin-top:6px"><b>建议：${esc(f.action)} ${Math.round((f.ratio || 0) * 100)}%</b>（约 ${money(f.amount)} 元${f.fee ? `，赎回费约 ${money(f.fee.fee)} 元` : ''}）</div>` : ''}
       ${reasonsList(f.reasons)}
-      <div class="small muted" style="margin-top:6px">估值来源：${esc(m.est_source || '无')}${m.coverage ? `（重仓覆盖 ${Math.round(m.coverage * 100)}%）` : ''}
+      ${m.n_trades ? `<div class="small muted">已记录 ${esc(m.n_trades)} 笔交易${m.realized ? ` · 已实现收益 ${money(m.realized)} 元` : ''}${m.pending ? ' · 有买入尚未按净值确认，份额暂按最新净值估算' : ''}</div>` : ''}
+      <div class="small muted" style="margin-top:6px">估值来源：${esc(m.est_source || '无')}${m.coverage ? `（重仓覆盖 ${Math.round(m.coverage * 100)}%）` : ''}${m.est_note ? `，${esc(m.est_note)}` : ''}
+        ${m.est_own != null && m.est_source === '东财估值' ? ` · 重仓股估算 ${pp(m.est_own)}` : ''}
         ${m.est_pct_em != null ? ` · 东财估值 ${pp(m.est_pct_em)}` : ''} · 最新净值 ${esc(m.last_nav)}（${esc(m.nav_date)}）
         · 趋势 ${trendTxt(m.trend)} · RSI ${esc(m.rsi ?? '-')} · 板块 ${esc(m.sector || '-')} 强度 ${m.sector_pct != null ? Math.round(m.sector_pct * 100) + '%' : '-'}
         · 同类近3月排名 ${m.rank_pct != null ? '前' + Math.round((1 - m.rank_pct) * 100) + '%' : '-'}</div>
@@ -80,9 +83,21 @@ export function switchCard(rep) {
         <td class="${cls(f.r1y)}">${pp(f.r1y)}</td><td>${pct(f.mdd_1y)}</td></tr>`).join('')}</table></div>`).join('')}</div>`;
 }
 
+function closedCard(rep) {
+  const c = rep.closed || [];
+  if (!c.length) return '';
+  return `<div class="card"><h3>已清仓</h3><table><tr><th>名称</th><th>类型</th><th>已实现收益</th></tr>
+    ${c.map((x) => `<tr><td>${esc(x.name)}<div class="muted small">${esc(x.code)}</div></td><td>${x.asset === 'fund' ? '基金' : '股票'}</td>
+      <td class="${cls(x.realized)}">${money(x.realized)} 元</td></tr>`).join('')}</table></div>`;
+}
+
 export function stocks(rep) {
   const list = rep.stocks || [];
-  if (!list.length) return '<div class="card">还没有股票持仓，去「我的 → 持仓管理」添加。专区推荐见「专区」页。</div>';
+  if (!list.length) return '<div class="card">还没有股票持仓，去「我的 → 持仓管理」添加。专区推荐见「专区」页。</div>' + closedCard(rep);
+  return closedCardAfter(list, rep);
+}
+
+function closedCardAfter(list, rep) {
   return list.map((s) => {
     const m = s.metrics || {};
     return `<div class="card">
@@ -94,9 +109,10 @@ export function stocks(rep) {
       </div>
       ${s.shares ? `<div style="margin-top:6px"><b>建议：${esc(s.action)} ${esc(s.shares)} 股</b>（约 ${money(s.amount)} 元）</div>` : ''}
       ${reasonsList(s.reasons)}
+      ${m.n_trades ? `<div class="small muted">已记录 ${esc(m.n_trades)} 笔交易${m.realized ? ` · 已实现收益 ${money(m.realized)} 元` : ''}</div>` : ''}
       <div class="small muted">仓位 ${pct(m.weight)} · 趋势 ${trendTxt(m.trend)} · RSI ${esc(m.rsi ?? '-')} · ATR ${esc(m.atr)} · 新闻情绪 ${esc(m.news_score)}</div>
       ${(s.news || []).length ? `<details><summary>相关新闻</summary>${s.news.map((n) => `<div class="small item"><a href="${safeUrl(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a>
         <span class="${cls(n.score)}">${n.score > 0 ? '+' : ''}${esc(n.score)}</span></div>`).join('')}</details>` : ''}
     </div>`;
-  }).join('');
+  }).join('') + closedCard(rep);
 }

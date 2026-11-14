@@ -85,9 +85,17 @@ def evening_message(rep: dict) -> tuple[str, str, str]:
     if len(hist) >= 2:
         day = f" · 今日 {hist[-1]['value'] - hist[-2]['value']:+,.0f} 元"
     parts = [f"组合 **{pf.get('total', 0):,.0f}** 元{day} · 累计 {_p(pf.get('ret'))} · 回撤 {_p(pf.get('drawdown'))}"]
+    if pf.get("realized"):
+        parts[0] += f" · 已实现收益 {pf['realized']:+,.0f} 元"
     chk = rep.get("est_check", [])
     if chk:
         parts.append("**估值误差**：" + "、".join(f"{c['name']} 估{_pct(c['est'])}/实{_pct(c['actual'])}" for c in chk))
+    tr = rep.get("tracking", {})
+    rated = [x for x in tr.get("rules", []) if x.get("n5")]
+    if rated:
+        n = sum(x["n5"] for x in rated)
+        win = sum((x["win5"] or 0) * x["n5"] for x in rated) / n
+        parts.append(f"**建议追踪**：已有 {n} 条建议满 5 个交易日，5日胜率 {win:.0%}（详见「配置」页）")
     zones = rep.get("zones", {})
     picks = [z[0] for z in zones.values() if z]
     if picks:

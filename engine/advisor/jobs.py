@@ -11,11 +11,13 @@ from .analysis import rotation as rt
 from .analysis import screener as sc
 from .analysis.backtest import allocation_backtest
 from .analysis.fund_switch import switch_plan
+from .analysis import calibration as cal
+from .analysis import tracking as tk
 from .analysis.sentiment import analyze_news
 from .analysis.taxonomy import ZONE_NAMES
 from .data import market as mk
 from .data import news as nw
-from .pipeline import analyze_funds, analyze_stocks, estimate_check, fund_backtests
+from .pipeline import analyze_funds, analyze_stocks, close_estimates, estimate_check, fund_backtests, prepare_holdings
 from .portfolio import Store, portfolio_summary, risk_of
 from .util import log, now_cst, r, safe
 
@@ -85,6 +87,7 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False) ->
     state = store.state()
     rep = store.report() or {}
     cash = float(h.get("cash") or 0)
+    trades = h.get("trades") or []
 
     rep["market"] = safe(al.market_regime, rep.get("market", {}), "market_regime")
     rep["news"] = safe(lambda: _news_section(h), rep.get("news", {}), "news")
@@ -101,16 +104,18 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False) ->
 
     if job in ("close", "evening", "refresh"):
         intraday = job == "close" or (job == "refresh" and now.hour * 100 + now.minute < 1500 and now.hour >= 9)
-        sv = _stock_value_rough(h.get("stocks", []))
-        rep["funds"] = analyze_funds(h.get("funds", []), risk, today, intraday, board_pct, sv, cash, _prev_dd(state))
+        pos = prepare_holdings(h)
+        cash = pos["cash"]
+        sv = _stock_value_rough(pos["stocks"])
+        rep["funds"] = analyze_funds(pos["funds"], risk, today, intraday, board_pct, sv, cash, _prev_dd(state), state)
         fv = sum(f["metrics"]["value"] or 0 for f in rep["funds"])
-        rep["stocks"] = analyze_stocks(h.get("stocks", []), risk, today, fv, cash, board_pct)
-        rep["portfolio"] = portfolio_summary(rep["funds"], rep["stocks"], cash, state, tstr, record=(job == "evening"))
+        rep["stocks"] = analyze_stocks(pos["stocks"], risk, today, fv, cash, board_pct)
+        rep["closed"] = pos["closed"]
+        rep["portfolio"] = portfolio_summary(rep["funds"], rep["stocks"], cash, state, tstr, record=(job == "evening"),
+                                             closed=pos["closed"])
         if job == "close":
-            ests = state.setdefault("estimates", {})
-            ests[tstr] = {f["code"]: f["metrics"]["est_pct"] for f in rep["funds"] if f["metrics"]["est_pct"] is not None}
-            for k in sorted(ests)[:-30]:
-                ests.pop(k)
+            cal.record_close(state, tstr, close_estimates(rep["funds"]))
+            tk.record_advice(state, rep, tstr)
         if job == "evening":
             rep["est_check"] = estimate_check(state, rep["funds"], tstr)
 
@@ -122,6 +127,12 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False) ->
             rep["zones"] = zones
             rep["zone_names"] = ZONE_NAMES
             rep["universe_period"] = uni.attrs.get("period")
+
+    if job == "weekly":
+        tk.record_picks(state, rep, tstr)
+    if job in ("evening", "weekly", "refresh"):
+        safe(lambda: tk.evaluate(state, today), None, "tracking_evaluate")
+    rep["tracking"] = safe(lambda: tk.report(state, trades), rep.get("tracking", {}), "tracking_report")
 
     need_switch = any(f.get("switch") for f in rep.get("funds", []))
     if (job == "weekly" or need_switch or not rep.get("switch")) and not rot_df.empty:

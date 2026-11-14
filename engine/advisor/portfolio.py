@@ -70,13 +70,15 @@ def risk_of(h: dict) -> RiskSettings:
 
 
 def portfolio_summary(fund_adv: list[dict], stock_adv: list[dict], cash: float, state: dict, today: str,
-                      record: bool) -> dict:
+                      record: bool, closed: list[dict] | None = None) -> dict:
     fv = sum(a["metrics"]["value"] or 0 for a in fund_adv)
     sv = sum(a["metrics"]["value"] or 0 for a in stock_adv)
     fcost = sum((a["metrics"]["value"] or 0) / (1 + (a["metrics"]["ret_hold"] or 0)) for a in fund_adv)
     scost = sum((a["metrics"]["value"] or 0) / (1 + (a["metrics"]["ret_hold"] or 0)) for a in stock_adv)
     total = fv + sv + cash
     cost = fcost + scost + cash
+    realized = sum((a["metrics"].get("realized") or 0) for a in fund_adv + stock_adv) + \
+        sum((c.get("realized") or 0) for c in closed or [])
     hist = [p for p in state.get("portfolio", []) if p["date"] != today]
     if record:
         hist.append({"date": today, "value": r(total, 2), "cost": r(cost, 2)})
@@ -86,4 +88,5 @@ def portfolio_summary(fund_adv: list[dict], stock_adv: list[dict], cash: float, 
     dd = (series[-1] / peak - 1) if series else 0
     return {"total": r(total, 2), "funds": r(fv, 2), "stocks": r(sv, 2), "cash": r(cash, 2), "cost": r(cost, 2),
             "pnl": r(total - cost, 2), "ret": r(total / cost - 1 if cost else 0, 4), "drawdown": r(dd, 4),
+            "realized": r(realized, 2), "total_pnl": r(total - cost + realized, 2),
             "history": hist[-250:]}

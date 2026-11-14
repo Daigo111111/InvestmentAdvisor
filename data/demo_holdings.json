@@ -14,5 +14,9 @@
     {"code": "300750", "name": "宁德时代", "shares": 100, "cost": 262, "buy_date": "2026-10-20"}
   ],
   "cash": 20000,
+  "trades": [
+    {"id": "demo1", "date": "2026-11-03", "asset": "fund", "code": "090010", "name": "大成中证红利指数A", "side": "buy", "amount": 5000},
+    {"id": "demo2", "date": "2026-11-05", "asset": "stock", "code": "600900", "name": "长江电力", "side": "sell", "shares": 100, "price": 30.1, "fee": 5}
+  ],
   "settings": {"max_drawdown": 0.20, "target_return": 0.20, "min_return": 0.07}
 }

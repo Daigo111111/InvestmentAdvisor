@@ -98,40 +98,40 @@ def advise(ctx: dict, risk: RiskSettings, today: date) -> dict:
     near_dd_limit = ctx.get("portfolio_dd", 0) <= -0.75 * risk.max_drawdown
     days_min = min(((today - date.fromisoformat(l["date"])).days for l in h["lots"] if l.get("date")), default=None)
 
-    action, ratio, reasons, level = "不动", 0.0, [], "中"
+    action, ratio, reasons, level, rule = "不动", 0.0, [], "中", "hold"
     cat = ctx.get("category", "equity")
 
-    def sell(a: str, rt: float, why: str, lv: str = "中"):
-        nonlocal action, ratio, level
-        action, ratio, level = a, rt, lv
+    def sell(a: str, rt: float, why: str, lv: str = "中", rl: str = ""):
+        nonlocal action, ratio, level, rule
+        action, ratio, level, rule = a, rt, lv, rl
         reasons.insert(0, why)
 
     if cat in ("money", "bond"):
         reasons.append("货币/债券类基金波动小，以长期持有为主")
         if cat == "bond" and dd_peak <= -0.03:
-            sell("减仓", 0.3, f"债基从高点回撤 {abs(dd_peak):.1%}，超出正常波动，建议减仓 30% 观察")
+            sell("减仓", 0.3, f"债基从高点回撤 {abs(dd_peak):.1%}，超出正常波动，建议减仓 30% 观察", rl="bond_dd")
     elif ret_hold <= risk.fund_stop_loss * 1.5 and trend <= 0:
-        sell("卖出", 1.0, f"持有收益 {ret_hold:.1%} 已远低于止损线 {risk.fund_stop_loss:.0%}，且趋势未企稳", "高")
+        sell("卖出", 1.0, f"持有收益 {ret_hold:.1%} 已远低于止损线 {risk.fund_stop_loss:.0%}，且趋势未企稳", "高", "stop_loss_full")
     elif ret_hold <= risk.fund_stop_loss and trend <= 0:
-        sell("减仓", 0.5, f"持有收益 {ret_hold:.1%} 触及止损线 {risk.fund_stop_loss:.0%}，趋势偏弱，先减半控制回撤", "高")
+        sell("减仓", 0.5, f"持有收益 {ret_hold:.1%} 触及止损线 {risk.fund_stop_loss:.0%}，趋势偏弱，先减半控制回撤", "高", "stop_loss_half")
     elif peak_ret >= risk.fund_take_profit * 0.6 and dd_peak <= -risk.trailing_drawdown:
-        sell("减仓", 0.33, f"持有期最高收益 {peak_ret:.1%}，已从高点回撤 {abs(dd_peak):.1%}，触发移动止盈，锁定部分利润")
+        sell("减仓", 0.33, f"持有期最高收益 {peak_ret:.1%}，已从高点回撤 {abs(dd_peak):.1%}，触发移动止盈，锁定部分利润", rl="trailing_tp")
     elif rsi and rsi > 75 and (est or 0) >= 2.5 and ret_hold > 0.10:
-        sell("减仓", 0.2, f"今日估算 +{est:.2f}%，RSI {rsi:.0f} 处于超买区，持有收益 {ret_hold:.1%}，分批止盈 20%", "低")
+        sell("减仓", 0.2, f"今日估算 +{est:.2f}%，RSI {rsi:.0f} 处于超买区，持有收益 {ret_hold:.1%}，分批止盈 20%", "低", "overbought")
     elif trend == -1 and (mom60 or 0) < -0.08 and (sector_pct is not None and sector_pct < 0.3):
-        sell("减仓", 0.3, f"净值空头排列，近60日 {mom60:.1%}，所属板块强度排名靠后，建议减仓并考虑换基")
+        sell("减仓", 0.3, f"净值空头排列，近60日 {mom60:.1%}，所属板块强度排名靠后，建议减仓并考虑换基", rl="trend_broken")
     elif trend >= 0 and est is not None and est <= risk.dip_buy_threshold and not near_dd_limit \
             and weight < risk.single_fund_cap and float(acc.iloc[-1]) >= (ind.ma(acc, 60) or 0):
-        action, ratio, level = "加仓", 0.2 if est <= risk.dip_buy_threshold - 1 else 0.1, "中"
+        action, ratio, level, rule = "加仓", 0.2 if est <= risk.dip_buy_threshold - 1 else 0.1, "中", "dip_buy"
         reasons.insert(0, f"趋势未破（净值在60日均线上方），今日估算 {est:.2f}%，属于回调买点，可在15:00前小幅加仓")
     if action == "不动":
         reasons.append({1: "净值多头排列，继续持有", 0: "净值震荡，暂无明确信号", -1: "净值偏弱但未触发止损，观察"}[trend])
 
     if days_min is not None and days_min < 7 and action in ("卖出", "减仓") and level != "高":
         reasons.append(f"最近一笔仅持有 {days_min} 天，7 天内赎回费通常为 1.5%，建议满 7 天后再操作")
-        action, ratio = "不动", 0.0
+        action, ratio, rule = "不动", 0.0, "fee_guard"
     if near_dd_limit and action == "加仓":
-        action, ratio = "不动", 0.0
+        action, ratio, rule = "不动", 0.0, "dd_guard"
         reasons.append("组合回撤接近上限，暂停加仓")
     if action == "加仓" and ctx.get("cash") is not None and ctx["cash"] < value * ratio:
         reasons.append(f"可用现金 {ctx['cash']:.0f} 元不足建议金额，按可用现金执行")
@@ -143,7 +143,7 @@ def advise(ctx: dict, risk: RiskSettings, today: date) -> dict:
     if switch:
         reasons.append(f"近3月收益在同类中排名后 {ctx['rank_pct']:.0%}，建议参考「换基建议」")
     return {
-        "code": ctx["code"], "name": ctx["name"], "type": ctx.get("type"), "category": cat, "action": action,
+        "code": ctx["code"], "name": ctx["name"], "type": ctx.get("type"), "category": cat, "action": action, "rule": rule,
         "ratio": r(ratio, 2),
         "amount": r(value * ratio, 0), "level": level, "reasons": reasons, "switch": bool(switch), "fee": fee,
         "metrics": {"est_pct": est, "est_source": ctx.get("est_source"), "coverage": ctx.get("coverage"),

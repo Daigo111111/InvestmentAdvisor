@@ -68,10 +68,35 @@ export function plan(rep) {
     html += `<div class="card"><h3>板块轮动</h3><div class="small muted">综合动量、趋势、资金流向和新闻热度打分（同花顺行业）</div>
       <h4>强势</h4>${t(rot.top)}<h4>弱势</h4>${t(rot.bottom)}</div>`;
   }
+  html += trackingCard(rep.tracking);
   const chk = rep.est_check || [];
   if (chk.length) {
-    html += `<div class="card"><h3>估值误差检查</h3><table><tr><th>基金</th><th>14:10估算</th><th>实际</th><th>误差</th></tr>
-      ${chk.map((c) => `<tr><td>${esc(c.name)}</td><td>${pp(c.est)}</td><td>${pp(c.actual)}</td><td>${pp(c.error)}</td></tr>`).join('')}</table></div>`;
+    html += `<div class="card"><h3>估值误差检查</h3><div class="small muted">每天记录「估算 vs 实际」，满 5 天后自动校正重仓股估算，并在两种估值里选历史误差更小的。</div>
+      <table><tr><th>基金</th><th>采用</th><th>重仓股</th><th>东财</th><th>实际</th><th>误差</th></tr>
+      ${chk.map((c) => `<tr><td>${esc(c.name)}</td><td>${pp(c.est)}</td><td>${pp(c.own)}</td><td>${pp(c.em)}</td><td>${pp(c.actual)}</td><td>${pp(c.error)}</td></tr>`).join('')}</table></div>`;
   }
   return html;
+}
+
+const winTxt = (w, n) => (w == null || !n ? '-' : `${Math.round(w * 100)}%`);
+
+function trackingCard(tr) {
+  if (!tr || !(tr.rules || []).length) {
+    return `<div class="card"><h3>建议效果追踪</h3><div class="small muted">从下一个交易日 14:10 起记录每条操作建议，满 5 个交易日后在这里显示胜率。</div></div>`;
+  }
+  const f = tr.follow || {};
+  const cmp = (a, b, n) => `<tr><td>${n}</td><td>${esc(a?.n ?? 0)} 条 · 胜率 ${winTxt(a?.win, a?.n)} · 平均 ${pct(a?.avg)}</td>
+    <td>${esc(b?.n ?? 0)} 条 · 胜率 ${winTxt(b?.win, b?.n)} · 平均 ${pct(b?.avg)}</td></tr>`;
+  return `<div class="card"><h3>建议效果追踪</h3>
+    <table><tr><th>规则</th><th>次数</th><th>5日胜率</th><th>5日平均</th><th>20日胜率</th><th>20日平均</th></tr>
+    ${tr.rules.map((x) => `<tr><td>${esc(x.name)}<div class="muted small">${esc(x.action)}</div></td><td>${esc(x.count)}</td>
+      <td>${winTxt(x.win5, x.n5)}</td><td class="${cls(x.avg5)}">${x.n5 ? pct(x.avg5) : '-'}</td>
+      <td>${winTxt(x.win20, x.n20)}</td><td class="${cls(x.avg20)}">${x.n20 ? pct(x.avg20) : '-'}</td></tr>`).join('')}</table>
+    <h4>照做 vs 没照做</h4>
+    <div class="small muted">共 ${esc(f.total ?? 0)} 条操作建议，其中 ${esc(f.followed ?? 0)} 条你在 3 天内有同方向交易记录</div>
+    <table><tr><th></th><th>照做</th><th>没照做</th></tr>${cmp(f.yes5, f.no5, '5日')}${cmp(f.yes20, f.no20, '20日')}</table>
+    <details><summary>最近的建议记录</summary><table><tr><th>日期</th><th>标的</th><th>建议</th><th>5日</th><th>20日</th></tr>
+    ${(tr.recent || []).map((s) => `<tr><td>${esc(s.date.slice(5))}</td><td>${esc(s.name)}<div class="muted small">${esc(s.rule_name)}</div></td>
+      <td>${esc(s.action)}${s.followed ? ' ✓' : ''}</td><td class="${cls(s.r5)}">${pct(s.r5)}</td><td class="${cls(s.r20)}">${pct(s.r20)}</td></tr>`).join('')}</table></details>
+    <div class="muted small" style="margin-top:6px">${esc(tr.note || '')}</div></div>`;
 }

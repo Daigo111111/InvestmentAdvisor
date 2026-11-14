@@ -12,8 +12,40 @@ export async function ensureLoaded(st) {
   if (!st.h) {
     const { holdings, sha, source } = await loadHoldings();
     st.h = holdings; st.sha = sha; st.hSource = source;
-    st.h.funds ||= []; st.h.stocks ||= []; st.h.settings ||= {};
+    st.h.funds ||= []; st.h.stocks ||= []; st.h.settings ||= {}; st.h.trades ||= [];
   }
+}
+
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+function tradesCard(h) {
+  const codes = [...h.funds.map((f) => [f.code, f.name, 'fund']), ...h.stocks.map((s) => [s.code, s.name, 'stock'])];
+  const rows = [...h.trades].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 30).map((t) => `<tr>
+    <td>${esc(t.date)}</td><td>${t.side === 'buy' ? '<span class="up">买入</span>' : '<span class="down">卖出</span>'}</td>
+    <td>${esc(t.name || t.code)}<div class="muted small">${t.asset === 'fund' ? '基金' : '股票'} ${esc(t.code)}</div></td>
+    <td>${t.amount ? money(t.amount) + '元' : ''}${t.shares ? ` ${esc(t.shares)}${t.asset === 'fund' ? '份' : '股'}` : ''}${t.price ? ` @${esc(t.price)}` : ''}</td>
+    <td><button class="ghost" data-del-trade="${esc(t.id)}">删</button></td></tr>`).join('');
+  return `<div class="card"><h3>记一笔交易</h3>
+    <div class="small muted">在支付宝、银行或券商 App 里买卖后，在这里记一笔。系统会自动更新份额、成本、可用现金和已实现收益，并统计你是否照建议操作。</div>
+    <div class="grid">
+      <div><label>类型</label><select id="tAsset"><option value="fund">基金</option><option value="stock">股票</option></select></div>
+      <div><label>方向</label><select id="tSide"><option value="buy">买入</option><option value="sell">卖出</option></select></div>
+      <div><label>日期</label><input id="tDate" type="date" value="${today()}"></div></div>
+    <label>代码</label><input id="tCode" inputmode="numeric" maxlength="6" list="tCodes" placeholder="6 位代码">
+    <datalist id="tCodes">${codes.map(([c, n]) => `<option value="${esc(c)}">${esc(n || c)}</option>`).join('')}</datalist>
+    <div id="tName" class="small muted"></div>
+    <div class="grid">
+      <div><label>金额(元)</label><input id="tAmount" inputmode="decimal"></div>
+      <div><label>份额/股数</label><input id="tShares" inputmode="decimal"></div>
+      <div><label>成交价/净值</label><input id="tPrice" inputmode="decimal"></div></div>
+    <label>手续费(元，可不填)</label><input id="tFee" inputmode="decimal">
+    <div class="small muted">基金买入只填金额即可（份额按当天净值自动折算，15:00 后买入请把日期填下一个交易日）；基金卖出填份额或金额；股票填股数和成交价。</div>
+    <div style="margin-top:8px"><button id="addTrade">记录这笔交易</button></div>
+    ${rows ? `<h4>最近的交易</h4><table><tr><th>日期</th><th>方向</th><th>名称</th><th>数量</th><th></th></tr>${rows}</table>` : ''}
+  </div>`;
 }
 
 export function render(st) {
@@ -33,7 +65,8 @@ export function render(st) {
     <td><input data-draft-amount="${i}" inputmode="decimal" value="${esc(d.amount ?? '')}"></td>
     <td><input data-draft-profit="${i}" inputmode="decimal" value="${esc(d.profit ?? '')}"></td></tr>`).join('');
   return `
-  <div class="card"><h3>持仓管理</h3><div class="muted small">数据来源：${esc(src)}</div></div>
+  <div class="card"><h3>持仓管理</h3><div class="muted small">数据来源：${esc(src)}。下面「基金」「股票」里录入的是初始持仓，之后的买卖用「记一笔交易」记录，不需要删掉重录。</div></div>
+  ${tradesCard(h)}
   <div class="card"><h3>截图导入</h3>
     <div class="small muted">支持支付宝、天天基金、银行 App 的基金持仓截图。识别在手机本地完成，图片不会上传。识别后请逐条核对。</div>
     <input type="file" id="ocrFile" accept="image/*" multiple style="margin-top:8px">
@@ -75,7 +108,10 @@ export function bind(root, st, rerender0) {
   const $ = (id) => root.querySelector(`#${id}`);
   // 重新渲染前先把现金和风险参数输入框的值写回，避免未保存的输入丢失
   const syncInputs = () => {
-    if ($('cash')) st.h.cash = num($('cash').value) || 0;
+    if ($('cash')) {
+      const v = num($('cash').value) || 0;
+      if (v !== (Number(st.h.cash) || 0)) { st.h.cash = v; st.h.cash_as_of = today(); }  // 现金以今天手填为准，之前的交易不再重复扣减
+    }
     root.querySelectorAll('[data-risk]').forEach((i) => { if (i.value !== '') st.h.settings[i.dataset.risk] = num(i.value); });
   };
   const rerender = () => { syncInputs(); rerender0(); };
@@ -89,7 +125,7 @@ export function bind(root, st, rerender0) {
     const code = $('fCode').value.trim();
     const f = (await getFundIndex()).find((x) => x[0] === code);
     if (!/^\d{6}$/.test(code)) return toast('请输入 6 位基金代码');
-    const item = { code, name: f ? f[1] : code, buy_date: $('fDate').value || null };
+    const item = { code, name: f ? f[1] : code, buy_date: $('fDate').value || null, as_of: today() };
     if ($('fShares').value) { item.shares = num($('fShares').value); item.cost_nav = num($('fCost').value); }
     else { item.amount = num($('fAmount').value); item.profit = num($('fProfit').value) ?? 0; }
     if (!item.shares && !item.amount) return toast('请填写持有金额或份额');
@@ -99,9 +135,37 @@ export function bind(root, st, rerender0) {
     const code = $('sCode').value.trim();
     if (!/^\d{6}$/.test(code) || !$('sShares').value) return toast('请填写股票代码和股数');
     st.h.stocks.push({ code, name: $('sName').value.trim() || code, shares: num($('sShares').value),
-      cost: num($('sCost').value), buy_date: $('sDate').value || null });
+      cost: num($('sCost').value), buy_date: $('sDate').value || null, as_of: today() });
     rerender();
   });
+  $('tCode')?.addEventListener('input', async (e) => {
+    const code = e.target.value.trim();
+    if (code.length !== 6) { $('tName').textContent = ''; return; }
+    const held = [...st.h.funds, ...st.h.stocks].find((x) => x.code === code);
+    if (held) { $('tName').textContent = held.name || code; return; }
+    const f = (await getFundIndex()).find((x) => x[0] === code);
+    $('tName').textContent = f ? `${f[1]}（基金）` : '不在持仓中，按新标的记录';
+  });
+  $('addTrade')?.addEventListener('click', async () => {
+    const asset = $('tAsset').value, side = $('tSide').value, code = $('tCode').value.trim();
+    const t = { id: Date.now().toString(36), date: $('tDate').value || today(), asset, side, code,
+      amount: num($('tAmount').value), shares: num($('tShares').value), price: num($('tPrice').value), fee: num($('tFee').value) };
+    if (!/^\d{6}$/.test(code)) return toast('请输入 6 位代码');
+    if (asset === 'fund' && side === 'buy' && !(t.amount > 0)) return toast('基金买入请填写金额');
+    if (asset === 'fund' && side === 'sell' && !(t.amount > 0) && !(t.shares > 0)) return toast('基金卖出请填写份额或金额');
+    if (asset === 'stock' && !(t.shares > 0 && t.price > 0)) return toast('股票请填写股数和成交价');
+    const held = (asset === 'fund' ? st.h.funds : st.h.stocks).find((x) => x.code === code);
+    if (side === 'sell' && !held && !st.h.trades.some((x) => x.code === code && x.side === 'buy')) return toast('没有找到这只的持仓，无法卖出');
+    let name = held && held.name;
+    if (!name && asset === 'fund') { const f = (await getFundIndex()).find((x) => x[0] === code); name = f ? f[1] : code; }
+    t.name = name || code;
+    st.h.trades.push(t);
+    toast('已记录，记得点最下面的「保存」');
+    rerender();
+  });
+  root.querySelectorAll('[data-del-trade]').forEach((b) => b.addEventListener('click', () => {
+    st.h.trades = st.h.trades.filter((x) => x.id !== b.dataset.delTrade); rerender();
+  }));
   root.querySelectorAll('[data-del-fund]').forEach((b) => b.addEventListener('click', () => { st.h.funds.splice(+b.dataset.delFund, 1); rerender(); }));
   root.querySelectorAll('[data-del-stock]').forEach((b) => b.addEventListener('click', () => { st.h.stocks.splice(+b.dataset.delStock, 1); rerender(); }));
   $('ocrFile')?.addEventListener('change', async (e) => {
@@ -125,7 +189,7 @@ export function bind(root, st, rerender0) {
   root.querySelectorAll('[data-draft-profit]').forEach((s) => s.addEventListener('input', () => { st.draft[+s.dataset.draftProfit].profit = num(s.value); }));
   $('draftAdd')?.addEventListener('click', () => {
     const ok = st.draft.filter((d) => d.amount > 0);
-    ok.forEach((d) => st.h.funds.push({ code: d.code, name: d.name, amount: d.amount, profit: d.profit ?? 0, buy_date: null }));
+    ok.forEach((d) => st.h.funds.push({ code: d.code, name: d.name, amount: d.amount, profit: d.profit ?? 0, buy_date: null, as_of: today() }));
     toast(`已加入 ${ok.length} 只基金，买入日期未知的按持有满一年估算赎回费`);
     st.draft = null; rerender();
   });
