@@ -45,6 +45,10 @@ def build_site(out: str = "_site") -> None:
     for name in ("report.enc.json", "holdings.enc.json", "demo_report.json", "demo_holdings.json"):
         if (DATA_DIR / name).exists():
             shutil.copy(DATA_DIR / name, dst / "data" / name)
+    # 口令校验文件：网页解锁时用它确认输入的口令与 GitHub Secret 一致（只含固定内容，不含任何持仓）
+    if passphrase():
+        (dst / "data" / "key_check.enc.json").write_text(
+            json.dumps(crypto.encrypt_obj({"ok": True}, passphrase())), encoding="utf-8")
     fl = safe(fund_list, None, "fund_list")
     if fl is not None:
         rows = [[c, n, t] for c, n, t in zip(fl["code"], fl["name"], fl["type"]) if "后端" not in n]

@@ -28,6 +28,13 @@ async function fetchJson(url) {
   return r.json();
 }
 
+/** 用站点上的口令校验文件确认口令与 GitHub Secret 一致。返回 true/false；校验文件不存在时返回 null。 */
+export async function verifyPw(pw) {
+  let env = null;
+  try { env = await fetchJson('data/key_check.enc.json'); } catch { return null; }
+  try { return (await decryptObj(env, pw)).ok === true; } catch { return false; }
+}
+
 /** 返回 {report, demo}；正式数据需要口令，口令错误抛出 'BAD_PW'，无数据时回退演示数据。 */
 export async function loadReport() {
   if (!isDemo()) {

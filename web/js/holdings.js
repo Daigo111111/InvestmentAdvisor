@@ -1,5 +1,5 @@
 import { esc, money, toast } from './ui.js';
-import { loadHoldings, saveHoldings, isDemo, ghReady, getPw } from './store.js';
+import { loadHoldings, saveHoldings, isDemo, ghReady, getPw, verifyPw } from './store.js';
 import { getFundIndex, recognizeAll, parseHoldings } from './ocr.js';
 
 const RISK_FIELDS = [
@@ -132,11 +132,11 @@ export function bind(root, st, rerender0) {
   $('draftClear')?.addEventListener('click', () => { st.draft = null; rerender(); });
   $('saveH')?.addEventListener('click', async () => {
     syncInputs();
-    if (!isDemo() && !st.sha && st.hSource !== 'site' && !st.pwConfirmed) {
-      const again = prompt('首次保存，请再次输入口令确认（必须与 GitHub Secret ADVISOR_PASSPHRASE 完全一致）');
-      if (again === null) return;
-      if (again !== getPw()) return toast('两次口令不一致，未保存', 3000);
-      st.pwConfirmed = true;
+    if (!isDemo()) {
+      // 保存前确认口令与 GitHub Secret 一致，否则云端无法解密持仓
+      const ok = await verifyPw(getPw());
+      if (ok === false) return toast('口令与 GitHub Secret ADVISOR_PASSPHRASE 不一致，未保存。请在「我的」退出后重新输入', 4500);
+      if (ok === null) return toast('站点还没有生成口令校验文件，请先在 GitHub 运行一次 advisor 任务后再保存', 4500);
     }
     try {
       $('saveH').disabled = true;

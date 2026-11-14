@@ -1,4 +1,4 @@
-import { loadReport, getPw, setPw, clearPw, getCfg, setCfg, isDemo, ghReady, triggerJob } from './store.js';
+import { loadReport, getPw, setPw, clearPw, getCfg, setCfg, isDemo, ghReady, triggerJob, verifyPw } from './store.js';
 import { esc, toast } from './ui.js';
 import * as V from './views.js';
 import * as V2 from './views2.js';
@@ -21,7 +21,7 @@ function mePage() {
       iPhone：Safari 打开本页 → 底部「分享」→「添加到主屏幕」。Android/电脑：浏览器菜单 →「安装应用」。<br>
       推送：每个交易日 09:00 早报、14:10 尾盘决策、20:30 晚间复盘，周六周报（飞书 / 微信 WxPusher）。</div></div>
     <div class="card"><h3>口令</h3>
-      <div class="small muted">${getPw() ? '已解锁' : '未解锁'}${isDemo() ? ' · 当前为演示模式' : ''}</div>
+      <div class="small muted">${getPw() ? '已解锁' : '未解锁'}${isDemo() ? ' · 当前为演示模式' : ''}${st.demo && !isDemo() ? ' · 还没有你的持仓报告，页面显示的是演示数据' : ''}</div>
       <div class="row" style="margin-top:8px"><button class="ghost" id="logout">退出并清除本机口令</button>
         <button class="ghost" id="demoToggle">${isDemo() ? '退出演示模式' : '切换到演示模式'}</button></div></div>
     <div class="card"><h3>GitHub 仓库（用于保存持仓、手动触发分析）</h3>
@@ -54,7 +54,7 @@ async function renderHoldings() {
 
 function bindMe() {
   const $ = (id) => document.getElementById(id);
-  $('logout').onclick = () => { clearPw(); st.report = null; st.h = null; st.pwConfirmed = false; toast('已退出'); route(); };
+  $('logout').onclick = () => { clearPw(); st.report = null; st.h = null; toast('已退出'); route(); };
   $('demoToggle').onclick = () => {
     setCfg({ demo: !isDemo() });
     if (new URLSearchParams(location.search).has('demo')) history.replaceState(null, '', location.pathname + location.hash);
@@ -72,9 +72,13 @@ function bindMe() {
 
 function bindLock() {
   const $ = (id) => document.getElementById(id);
-  $('unlock').onclick = () => {
-    if (!$('pw').value) return toast('请输入口令');
-    setPw($('pw').value, $('remember').checked); st.report = null; st.h = null; route();
+  $('unlock').onclick = async () => {
+    const pw = $('pw').value;
+    if (!pw) return toast('请输入口令');
+    const ok = await verifyPw(pw);
+    if (ok === false) return toast('口令错误：与 GitHub Secret ADVISOR_PASSPHRASE 不一致', 3500);
+    if (ok === null) toast('暂时无法校验口令（站点尚未生成校验文件），请确认与 GitHub Secret 一致', 3500);
+    setPw(pw, $('remember').checked); st.report = null; st.h = null; route();
   };
   $('pw').onkeydown = (e) => { if (e.key === 'Enter') $('unlock').click(); };
   $('toDemo').onclick = () => { setCfg({ demo: true }); st.report = null; route(); };
@@ -82,6 +86,10 @@ function bindLock() {
 
 async function ensureReport() {
   if (st.report) return true;
+  if (!st.pwChecked && getPw() && !isDemo()) {
+    st.pwChecked = true;
+    if ((await verifyPw(getPw())) === false) { clearPw(); toast('已保存的口令不正确，请重新输入', 3000); }
+  }
   try {
     const { report, demo } = await loadReport();
     st.report = report; st.demo = demo;

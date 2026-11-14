@@ -105,6 +105,8 @@ jobs:
 
       - name: 生成站点
         working-directory: engine
+        env:
+          ADVISOR_PASSPHRASE: ${{ secrets.ADVISOR_PASSPHRASE }}
         run: python -m advisor build-site
 
       - uses: actions/upload-pages-artifact@v3
