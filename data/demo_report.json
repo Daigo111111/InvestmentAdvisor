@@ -315,6 +315,18 @@
     "stocks": []
    },
    {
+    "title": "哥伦比亚西南部发生一起交通事故 已致8死20伤",
+    "time": "2026-11-15 01:07:36",
+    "source": "财联社",
+    "url": "",
+    "score": -1.5,
+    "hits": [
+     "调查"
+    ],
+    "boards": [],
+    "stocks": []
+   },
+   {
     "title": "特斯拉Cybercab个人购车设使用限制 且暂禁商业用途",
     "time": "2026-11-14 23:45:38",
     "source": "财联社",
@@ -323,18 +335,6 @@
     "hits": [
      "支持",
      "限制"
-    ],
-    "boards": [],
-    "stocks": []
-   },
-   {
-    "title": "意大利称支持德国加入下一代战斗机项目",
-    "time": "2026-11-14 20:53:57",
-    "source": "财联社",
-    "url": "",
-    "score": 1.5,
-    "hits": [
-     "支持"
     ],
     "boards": [],
     "stocks": []
@@ -500,21 +500,6 @@
     "stocks": []
    },
    {
-    "title": "美国交通部长：希望航空系统现代化获得国会支持，我们将继续与议员沟通。",
-    "time": "2026-11-15 00:28:14",
-    "source": "新浪财经",
-    "url": "",
-    "score": 1.0,
-    "hits": [
-     "支持"
-    ],
-    "boards": [
-     "军工装备",
-     "机场航运"
-    ],
-    "stocks": []
-   },
-   {
     "title": "“加沙暴雨伤亡本可避免” 联合国呼吁以色列立即放行援助物资",
     "time": "2026-11-14 19:57:58",
     "source": "东方财富",
@@ -576,6 +561,18 @@
     "stocks": [
      "600030"
     ]
+   },
+   {
+    "title": "美民主党人要求马斯克保留“星链”限速记录",
+    "time": "2026-11-14 14:23:45",
+    "source": "东方财富",
+    "url": "https://finance.eastmoney.com/a/202611143931333187.html",
+    "score": -1.0,
+    "hits": [
+     "限制"
+    ],
+    "boards": [],
+    "stocks": []
    }
   ],
   "hot_boards": [
@@ -610,18 +607,13 @@
     "score": 4.5
    },
    {
+    "board": "IT服务",
+    "count": 18,
+    "score": 3.5
+   },
+   {
     "board": "消费电子",
     "count": 9,
-    "score": 3.0
-   },
-   {
-    "board": "IT服务",
-    "count": 17,
-    "score": 3.0
-   },
-   {
-    "board": "港口航运",
-    "count": 2,
     "score": 3.0
    },
    {
@@ -645,31 +637,46 @@
     "score": 2.0
    },
    {
-    "board": "物流",
+    "board": "港口航运",
     "count": 1,
+    "score": 2.0
+   },
+   {
+    "board": "软件开发",
+    "count": 17,
     "score": 1.5
    },
    {
-    "board": "通信设备",
-    "count": 10,
-    "score": 1.0
+    "board": "物流",
+    "count": 1,
+    "score": 1.5
    }
   ],
   "cold_boards": [
    {
     "board": "军工装备",
-    "count": 18,
-    "score": -10.0
-   },
-   {
-    "board": "军工电子",
-    "count": 3,
-    "score": -5.0
+    "count": 13,
+    "score": -11.0
    },
    {
     "board": "机场航运",
-    "count": 18,
+    "count": 13,
+    "score": -6.0
+   },
+   {
+    "board": "军工电子",
+    "count": 4,
     "score": -5.0
+   },
+   {
+    "board": "汽车零部件",
+    "count": 5,
+    "score": -2.0
+   },
+   {
+    "board": "汽车整车",
+    "count": 5,
+    "score": -2.0
    },
    {
     "board": "互联网电商",
@@ -682,19 +689,9 @@
     "score": -1.5
    },
    {
-    "board": "汽车零部件",
-    "count": 6,
-    "score": -1.5
-   },
-   {
-    "board": "汽车整车",
-    "count": 6,
-    "score": -1.5
-   },
-   {
     "board": "贸易",
-    "count": 5,
-    "score": -0.5
+    "count": 4,
+    "score": -1.5
    }
   ],
   "watch": [
@@ -1195,7 +1192,7 @@
    },
    "零售": {
     "board": "零售",
-    "score": 63.4,
+    "score": 63.5,
     "pct": 0.811,
     "r5": -0.0046,
     "r20": -0.0116,
@@ -1208,7 +1205,7 @@
    },
    "食品加工制造": {
     "board": "食品加工制造",
-    "score": 63.0,
+    "score": 63.1,
     "pct": 0.8,
     "r5": -0.0212,
     "r20": 0.0021,
@@ -1312,7 +1309,7 @@
    },
    "IT服务": {
     "board": "IT服务",
-    "score": 54.9,
+    "score": 55.0,
     "pct": 0.711,
     "r5": -0.0042,
     "r20": -0.0036,
@@ -1320,7 +1317,7 @@
     "trend": -1,
     "today_pct": -1.0,
     "inflow": -29.9,
-    "news": 3.0,
+    "news": 3.5,
     "overheat": false
    },
    "物流": {
@@ -1414,23 +1411,10 @@
     "news": 2.0,
     "overheat": false
    },
-   "港口航运": {
-    "board": "港口航运",
-    "score": 50.8,
-    "pct": 0.622,
-    "r5": -0.0309,
-    "r20": -0.0496,
-    "r60": -0.0248,
-    "trend": -1,
-    "today_pct": -1.2,
-    "inflow": -6.55,
-    "news": 3.0,
-    "overheat": false
-   },
    "通用设备": {
     "board": "通用设备",
     "score": 50.7,
-    "pct": 0.611,
+    "pct": 0.622,
     "r5": 0.0089,
     "r20": -0.015,
     "r60": -0.0988,
@@ -1438,6 +1422,19 @@
     "today_pct": -2.92,
     "inflow": -76.84,
     "news": 0.0,
+    "overheat": false
+   },
+   "港口航运": {
+    "board": "港口航运",
+    "score": 50.4,
+    "pct": 0.611,
+    "r5": -0.0309,
+    "r20": -0.0496,
+    "r60": -0.0248,
+    "trend": -1,
+    "today_pct": -1.2,
+    "inflow": -6.55,
+    "news": 2.0,
     "overheat": false
    },
    "医疗器械": {
@@ -1505,10 +1502,23 @@
     "news": 0.0,
     "overheat": false
    },
+   "软件开发": {
+    "board": "软件开发",
+    "score": 47.6,
+    "pct": 0.544,
+    "r5": -0.0147,
+    "r20": -0.0351,
+    "r60": -0.095,
+    "trend": -1,
+    "today_pct": -1.55,
+    "inflow": -17.66,
+    "news": 1.5,
+    "overheat": false
+   },
    "光学光电子": {
     "board": "光学光电子",
     "score": 47.4,
-    "pct": 0.544,
+    "pct": 0.533,
     "r5": 0.0167,
     "r20": -0.0257,
     "r60": -0.1099,
@@ -1521,7 +1531,7 @@
    "多元金融": {
     "board": "多元金融",
     "score": 47.1,
-    "pct": 0.533,
+    "pct": 0.522,
     "r5": -0.0212,
     "r20": -0.0488,
     "r60": -0.0946,
@@ -1534,7 +1544,7 @@
    "塑料制品": {
     "board": "塑料制品",
     "score": 46.6,
-    "pct": 0.522,
+    "pct": 0.511,
     "r5": 0.0057,
     "r20": -0.0358,
     "r60": -0.1047,
@@ -1547,7 +1557,7 @@
    "建筑材料": {
     "board": "建筑材料",
     "score": 44.4,
-    "pct": 0.511,
+    "pct": 0.5,
     "r5": -0.016,
     "r20": -0.0455,
     "r60": -0.0679,
@@ -1560,7 +1570,7 @@
    "光伏设备": {
     "board": "光伏设备",
     "score": 44.3,
-    "pct": 0.5,
+    "pct": 0.489,
     "r5": -0.0628,
     "r20": 0.0175,
     "r60": -0.1202,
@@ -1573,7 +1583,7 @@
    "包装印刷": {
     "board": "包装印刷",
     "score": 43.8,
-    "pct": 0.489,
+    "pct": 0.478,
     "r5": 0.002,
     "r20": -0.0538,
     "r60": -0.0916,
@@ -1586,7 +1596,7 @@
    "半导体": {
     "board": "半导体",
     "score": 43.3,
-    "pct": 0.478,
+    "pct": 0.467,
     "r5": 0.022,
     "r20": -0.0333,
     "r60": -0.2046,
@@ -1594,19 +1604,6 @@
     "today_pct": -3.33,
     "inflow": -147.74,
     "news": 5.5,
-    "overheat": false
-   },
-   "软件开发": {
-    "board": "软件开发",
-    "score": 43.3,
-    "pct": 0.467,
-    "r5": -0.0147,
-    "r20": -0.0351,
-    "r60": -0.095,
-    "trend": -1,
-    "today_pct": -1.55,
-    "inflow": -17.66,
-    "news": 0.0,
     "overheat": false
    },
    "综合": {
@@ -1908,23 +1905,10 @@
     "news": 0.0,
     "overheat": false
    },
-   "通信设备": {
-    "board": "通信设备",
-    "score": 28.0,
-    "pct": 0.2,
-    "r5": 0.0398,
-    "r20": -0.0865,
-    "r60": -0.1857,
-    "trend": -1,
-    "today_pct": -3.31,
-    "inflow": -80.27,
-    "news": 1.0,
-    "overheat": false
-   },
    "其他电子": {
     "board": "其他电子",
     "score": 28.0,
-    "pct": 0.189,
+    "pct": 0.2,
     "r5": -0.006,
     "r20": -0.0569,
     "r60": -0.1939,
@@ -1937,7 +1921,7 @@
    "化学制药": {
     "board": "化学制药",
     "score": 26.9,
-    "pct": 0.178,
+    "pct": 0.189,
     "r5": -0.0285,
     "r20": -0.0589,
     "r60": -0.1369,
@@ -1947,23 +1931,10 @@
     "news": 12.5,
     "overheat": false
    },
-   "风电设备": {
-    "board": "风电设备",
-    "score": 26.8,
-    "pct": 0.161,
-    "r5": -0.0387,
-    "r20": -0.0505,
-    "r60": -0.1478,
-    "trend": -1,
-    "today_pct": -1.86,
-    "inflow": -6.87,
-    "news": 0.0,
-    "overheat": false
-   },
    "钢铁": {
     "board": "钢铁",
     "score": 26.8,
-    "pct": 0.161,
+    "pct": 0.172,
     "r5": -0.032,
     "r20": -0.074,
     "r60": -0.1097,
@@ -1973,16 +1944,42 @@
     "news": 0.0,
     "overheat": false
    },
+   "风电设备": {
+    "board": "风电设备",
+    "score": 26.8,
+    "pct": 0.172,
+    "r5": -0.0387,
+    "r20": -0.0505,
+    "r60": -0.1478,
+    "trend": -1,
+    "today_pct": -1.86,
+    "inflow": -6.87,
+    "news": 0.0,
+    "overheat": false
+   },
    "化学原料": {
     "board": "化学原料",
     "score": 25.9,
-    "pct": 0.144,
+    "pct": 0.156,
     "r5": -0.0208,
     "r20": -0.0986,
     "r60": -0.1004,
     "trend": -1,
     "today_pct": -1.82,
     "inflow": -9.53,
+    "news": 0.0,
+    "overheat": false
+   },
+   "通信设备": {
+    "board": "通信设备",
+    "score": 23.8,
+    "pct": 0.144,
+    "r5": 0.0398,
+    "r20": -0.0865,
+    "r60": -0.1857,
+    "trend": -1,
+    "today_pct": -3.31,
+    "inflow": -80.27,
     "news": 0.0,
     "overheat": false
    },
@@ -2151,6 +2148,7 @@
    "type": "混合型-偏股",
    "category": "equity",
    "action": "不动",
+   "rule": "hold",
    "ratio": 0.0,
    "amount": 0.0,
    "level": "中",
@@ -2175,12 +2173,17 @@
     "rsi": 36.2,
     "mom20": -0.0304,
     "mom60": -0.1131,
-    "weight": 0.1685,
+    "weight": 0.1686,
     "sector": "白酒",
     "sector_pct": 0.96,
     "rank_pct": 0.68,
     "quarter": "2026年3季度股票投资明细",
-    "est_pct_em": null
+    "est_pct_em": null,
+    "est_own": null,
+    "est_note": "",
+    "realized": 0.0,
+    "n_trades": 0,
+    "pending": false
    },
    "top_holdings": [],
    "nav_curve": [
@@ -2724,6 +2727,7 @@
    "type": "指数型-股票",
    "category": "equity",
    "action": "不动",
+   "rule": "hold",
    "ratio": 0.0,
    "amount": 0.0,
    "level": "中",
@@ -2753,7 +2757,12 @@
     "sector_pct": 0.96,
     "rank_pct": 0.91,
     "quarter": "2026年3季度股票投资明细",
-    "est_pct_em": null
+    "est_pct_em": null,
+    "est_own": null,
+    "est_note": "",
+    "realized": 0.0,
+    "n_trades": 0,
+    "pending": false
    },
    "top_holdings": [],
    "nav_curve": [
@@ -3297,6 +3306,7 @@
    "type": "混合型-偏股",
    "category": "equity",
    "action": "减仓",
+   "rule": "trailing_tp",
    "ratio": 0.33,
    "amount": 8250.0,
    "level": "中",
@@ -3326,12 +3336,17 @@
     "rsi": 46.0,
     "mom20": -0.0123,
     "mom60": -0.1046,
-    "weight": 0.1404,
+    "weight": 0.1405,
     "sector": "半导体",
-    "sector_pct": 0.48,
+    "sector_pct": 0.47,
     "rank_pct": 0.65,
     "quarter": "2026年3季度股票投资明细",
-    "est_pct_em": null
+    "est_pct_em": null,
+    "est_own": null,
+    "est_note": "",
+    "realized": 0.0,
+    "n_trades": 0,
+    "pending": false
    },
    "top_holdings": [],
    "nav_curve": [
@@ -3875,6 +3890,7 @@
    "type": "指数型-股票",
    "category": "equity",
    "action": "不动",
+   "rule": "hold",
    "ratio": 0.0,
    "amount": 0.0,
    "level": "中",
@@ -3889,22 +3905,27 @@
     "coverage": 0.0,
     "last_nav": 2.7138,
     "est_nav": 2.7138,
-    "value": 20000.0,
+    "value": 24927.19,
     "nav_date": "2026-11-13",
     "last_pct": 0.33,
-    "ret_hold": 0.0811,
+    "ret_hold": 0.0607,
     "peak_ret": 0.1291,
     "dd_peak": -0.0419,
     "trend": -1,
     "rsi": 47.5,
     "mom20": -0.0099,
     "mom60": 0.0127,
-    "weight": 0.1123,
+    "weight": 0.1401,
     "sector": "煤炭开采加工",
     "sector_pct": 0.58,
     "rank_pct": 0.94,
     "quarter": "2026年3季度股票投资明细",
-    "est_pct_em": null
+    "est_pct_em": null,
+    "est_own": null,
+    "est_note": "",
+    "realized": 0.0,
+    "n_trades": 1,
+    "pending": false
    },
    "top_holdings": [],
    "nav_curve": [
@@ -4448,6 +4469,7 @@
    "type": "债券型-混合二级",
    "category": "bond",
    "action": "减仓",
+   "rule": "bond_dd",
    "ratio": 0.3,
    "amount": 4500.0,
    "level": "中",
@@ -4480,10 +4502,15 @@
     "mom60": -0.0556,
     "weight": 0.0843,
     "sector": "通信设备",
-    "sector_pct": 0.2,
+    "sector_pct": 0.14,
     "rank_pct": 0.1,
     "quarter": "2026年3季度股票投资明细",
-    "est_pct_em": null
+    "est_pct_em": null,
+    "est_own": null,
+    "est_note": "",
+    "realized": 0.0,
+    "n_trades": 0,
+    "pending": false
    },
    "top_holdings": [],
    "nav_curve": [
@@ -5027,6 +5054,7 @@
    "type": "指数型-海外股票",
    "category": "qdii",
    "action": "不动",
+   "rule": "hold",
    "ratio": 0.0,
    "amount": 0.0,
    "level": "中",
@@ -5056,7 +5084,12 @@
     "sector_pct": 0.84,
     "rank_pct": 0.1,
     "quarter": "2025年4季度股票投资明细",
-    "est_pct_em": null
+    "est_pct_em": null,
+    "est_own": null,
+    "est_note": "",
+    "realized": 0.0,
+    "n_trades": 0,
+    "pending": false
    },
    "top_holdings": [],
    "nav_curve": [
@@ -5599,13 +5632,14 @@
   {
    "code": "600900",
    "name": "长江电力",
-   "action": "持有",
-   "ratio": 0.0,
-   "shares": 0,
-   "amount": 0.0,
+   "action": "加仓",
+   "rule": "ma20_add",
+   "ratio": 0.45,
+   "shares": 200,
+   "amount": 5982.0,
    "level": "中",
    "reasons": [
-    "趋势向上，继续持有",
+    "多头趋势中回踩 20 日均线 29.70，可加仓约 3.0% 总资产",
     "所属板块「电力」强度分位 40%"
    ],
    "news": [
@@ -5620,20 +5654,23 @@
     "price": 29.91,
     "cost": 27.5,
     "ret_hold": 0.0876,
-    "value": 14955.0,
-    "weight": 0.084,
+    "value": 11964.0,
+    "weight": 0.0672,
     "stop": 28.6,
     "atr": 0.558,
     "trend": 1,
     "rsi": 56.8,
     "news_score": 5.0,
-    "board": "电力"
+    "board": "电力",
+    "realized": 255.0,
+    "n_trades": 1
    }
   },
   {
    "code": "600519",
    "name": "贵州茅台",
    "action": "减仓",
+   "rule": "atr_stop_half",
    "ratio": 0.5,
    "shares": 0,
    "amount": 0.0,
@@ -5661,13 +5698,16 @@
     "trend": 1,
     "rsi": 62.4,
     "news_score": 1.0,
-    "board": "白酒"
+    "board": "白酒",
+    "realized": 0.0,
+    "n_trades": 0
    }
   },
   {
    "code": "300750",
    "name": "宁德时代",
    "action": "卖出",
+   "rule": "atr_stop_full",
    "ratio": 1.0,
    "shares": 100,
    "amount": 23770.0,
@@ -5682,25 +5722,29 @@
     "cost": 262.0,
     "ret_hold": -0.0927,
     "value": 23770.0,
-    "weight": 0.1335,
+    "weight": 0.1336,
     "stop": 239.94,
     "atr": 9.648,
     "trend": -1,
     "rsi": 36.7,
     "news_score": 0.0,
-    "board": "电池"
+    "board": "电池",
+    "realized": 0.0,
+    "n_trades": 0
    }
   }
  ],
  "portfolio": {
-  "total": 178040.0,
-  "funds": 104962.4,
-  "stocks": 53077.6,
-  "cash": 20000.0,
-  "cost": 178766.61,
-  "pnl": -726.61,
-  "ret": -0.0041,
-  "drawdown": -0.0066,
+  "total": 177981.19,
+  "funds": 109889.59,
+  "stocks": 50086.6,
+  "cash": 18005.0,
+  "cost": 179022.54,
+  "pnl": -1041.35,
+  "ret": -0.0058,
+  "drawdown": -0.0083,
+  "realized": 255.0,
+  "total_pnl": -786.35,
   "history": [
    {
     "date": "2026-11-09",
@@ -6554,56 +6598,56 @@
    "fixed": 0.8
   },
   "current": {
-   "fixed": 0.1966,
-   "value": 0.3469,
-   "consumer": 0.1197,
-   "tech": 0.1404,
-   "dividend": 0.1963
+   "fixed": 0.1854,
+   "value": 0.3471,
+   "consumer": 0.1198,
+   "tech": 0.1405,
+   "dividend": 0.2073
   },
   "rebalance": [
    {
     "zone": "fixed",
     "name": "固收/现金",
     "target": 0.8,
-    "current": 0.1966,
-    "diff": 0.6034,
-    "amount": 107432.0,
+    "current": 0.1854,
+    "diff": 0.6146,
+    "amount": 109380.0,
     "action": "增配"
    },
    {
     "zone": "value",
     "name": "价值蓝筹",
     "target": 0.04,
-    "current": 0.3469,
-    "diff": -0.3069,
-    "amount": -54648.0,
+    "current": 0.3471,
+    "diff": -0.3071,
+    "amount": -54651.0,
     "action": "减配"
    },
    {
     "zone": "dividend",
     "name": "红利低波",
     "target": 0.08,
-    "current": 0.1963,
-    "diff": -0.1163,
-    "amount": -20712.0,
+    "current": 0.2073,
+    "diff": -0.1273,
+    "amount": -22653.0,
     "action": "减配"
    },
    {
     "zone": "consumer",
     "name": "消费医药",
     "target": 0.024,
-    "current": 0.1197,
-    "diff": -0.0957,
-    "amount": -17042.0,
+    "current": 0.1198,
+    "diff": -0.0958,
+    "amount": -17043.0,
     "action": "减配"
    },
    {
     "zone": "tech",
     "name": "科技成长",
     "target": 0.05,
-    "current": 0.1404,
-    "diff": -0.0904,
-    "amount": -16098.0,
+    "current": 0.1405,
+    "diff": -0.0905,
+    "amount": -16101.0,
     "action": "减配"
    },
    {
@@ -8296,7 +8340,7 @@
  },
  "meta": {
   "date": "2026-11-15",
-  "generated_at": "2026-11-15 00:35:52",
+  "generated_at": "2026-11-15 01:13:40",
   "job": "refresh",
   "version": "1.0.0",
   "demo": true,
@@ -8316,5 +8360,35 @@
    "sector_cap": 0.35
   }
  },
- "est_check": []
+ "est_check": [],
+ "closed": [],
+ "tracking": {
+  "rules": [],
+  "follow": {
+   "total": 0,
+   "followed": 0,
+   "yes5": {
+    "n": 0,
+    "win": null,
+    "avg": null
+   },
+   "no5": {
+    "n": 0,
+    "win": null,
+    "avg": null
+   },
+   "yes20": {
+    "n": 0,
+    "win": null,
+    "avg": null
+   },
+   "no20": {
+    "n": 0,
+    "win": null,
+    "avg": null
+   }
+  },
+  "recent": [],
+  "note": "效果：买入类建议看之后的涨幅（专区推荐看相对沪深300的超额收益），卖出类建议看之后的跌幅（跌得越多说明卖得越对）。「照做」指建议后 3 天内有同方向的交易记录。样本少于 20 条时胜率参考意义有限。"
+ }
 }
