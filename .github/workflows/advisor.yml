@@ -2,10 +2,12 @@ name: advisor
 
 on:
   schedule:
-    - cron: "0 1 * * 1-5"    # 北京时间 09:00 早报
-    - cron: "10 6 * * 1-5"   # 北京时间 14:10 尾盘决策（赶 15:00 截止）
-    - cron: "30 12 * * 1-5"  # 北京时间 20:30 晚间复盘
-    - cron: "0 2 * * 6"      # 北京时间 周六 10:00 周报
+    # GitHub 自带定时器在高峰期可能延迟数小时，只作兜底；准点触发靠外部定时器（cron-job.org）调用 workflow_dispatch。
+    # 避开整点（整点最拥挤），--once 保证同一任务一天只执行一次。
+    - cron: "7 1 * * 1-5"    # 北京时间 09:07 早报
+    - cron: "12 6 * * 1-5"   # 北京时间 14:12 尾盘决策
+    - cron: "37 12 * * 1-5"  # 北京时间 20:37 晚间复盘
+    - cron: "7 2 * * 6"      # 北京时间 周六 10:07 周报
   workflow_dispatch:
     inputs:
       job:
@@ -13,6 +15,10 @@ on:
         type: choice
         options: [refresh, morning, close, evening, weekly]
         default: refresh
+      once:
+        description: "定时触发模式（当天已执行则跳过，过了推送时段不推送）"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["data/holdings.enc.json", "web/**", "engine/**", ".github/workflows/advisor.yml"]
@@ -55,10 +61,10 @@ jobs:
           INPUT_JOB: ${{ github.event.inputs.job }}
         run: |
           case "$SCHEDULE" in
-            "0 1 * * 1-5")   J=morning ;;
-            "10 6 * * 1-5")  J=close ;;
-            "30 12 * * 1-5") J=evening ;;
-            "0 2 * * 6")     J=weekly ;;
+            "7 1 * * 1-5")   J=morning ;;
+            "12 6 * * 1-5")  J=close ;;
+            "37 12 * * 1-5") J=evening ;;
+            "7 2 * * 6")     J=weekly ;;
             *)               J="${INPUT_JOB:-refresh}" ;;
           esac
           case "$J" in morning|close|evening|weekly|refresh) ;; *) echo "非法任务 $J"; exit 1 ;; esac
@@ -79,14 +85,18 @@ jobs:
           LLM_MODEL: ${{ vars.LLM_MODEL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           EVENT: ${{ github.event_name }}
+          INPUT_ONCE: ${{ github.event.inputs.once }}
         run: |
           # 手动触发时即使是周末/节假日也执行，方便测试推送
-          FORCE=""; [ "$EVENT" = "workflow_dispatch" ] && FORCE="--force"
+          # 定时器触发（GitHub 定时或外部定时器 once=true）：按交易日历执行、当天去重；手动点击：周末也执行，方便测试
+          FORCE=""; ONCE=""
+          if [ "$EVENT" = "schedule" ] || [ "$INPUT_ONCE" = "true" ]; then ONCE="--once"
+          elif [ "$EVENT" = "workflow_dispatch" ]; then FORCE="--force"; fi
           if [ -f ../data/holdings.enc.json ] && [ -n "$ADVISOR_PASSPHRASE" ]; then
-            python -m advisor run --job "$JOB" $FORCE
+            python -m advisor run --job "$JOB" $FORCE $ONCE
           else
             echo "尚未上传加密持仓或未配置口令，使用演示数据（手动触发时会推送带[演示]前缀的消息，用于测试推送配置）"
-            PUSH="--no-push"; [ "$EVENT" = "workflow_dispatch" ] && PUSH=""
+            PUSH="--no-push"; [ "$EVENT" = "workflow_dispatch" ] && [ -z "$ONCE" ] && PUSH=""
             python -m advisor run --job "$JOB" --demo --force $PUSH
           fi
 

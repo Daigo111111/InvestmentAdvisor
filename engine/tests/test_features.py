@@ -92,3 +92,24 @@ def test_tracking_effect_and_follow(monkeypatch):
     rule = out["rules"][0]
     assert rule["win5"] == 1.0 and abs(rule["avg5"] - 0.2) < 1e-9  # 减仓后下跌 20%，效果为正
     assert out["follow"]["followed"] == 1 and out["recent"][0]["followed"] is True
+
+
+def test_once_skips_duplicate_run_same_day(monkeypatch):
+    from advisor import jobs
+
+    class FakeStore:
+        def __init__(self, demo=False):
+            pass
+
+        def holdings(self):
+            return {"funds": [], "stocks": [], "cash": 0, "settings": {}}
+
+        def state(self):
+            return {"done": {"close": jobs.now_cst().date().isoformat()}}
+
+        def report(self):
+            raise AssertionError("重复触发时不应继续执行")
+
+    monkeypatch.setattr(jobs, "Store", FakeStore)
+    monkeypatch.setattr(jobs.mk, "is_trade_day", lambda d: True)
+    assert jobs.run("close", once=True) == {}

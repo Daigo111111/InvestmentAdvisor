@@ -22,6 +22,8 @@ from .portfolio import Store, portfolio_summary, risk_of
 from .util import log, now_cst, r, safe
 
 JOBS = ("morning", "close", "evening", "weekly", "refresh")
+# 自动触发（定时/外部定时器）时，超过这些北京时间就不再推送，避免收到过时的提醒（报告仍会更新）
+PUSH_DEADLINE = {"morning": 1130, "close": 1500, "evening": 2359, "weekly": 2359}
 
 
 def _news_section(h: dict) -> dict:
@@ -73,7 +75,9 @@ def _allocation(rep: dict, risk, board_pct: dict) -> dict:
             "note": f"在最大回撤 {risk.max_drawdown:.0%} 约束下，按市场状态「{regime}」配置权益仓位"}
 
 
-def run(job: str, demo: bool = False, push: bool = True, force: bool = False) -> dict:
+def run(job: str, demo: bool = False, push: bool = True, force: bool = False, once: bool = False) -> dict:
+    """once=True 用于自动触发：同一任务当天已执行过则跳过（外部定时器和 GitHub 定时器同时存在时去重），
+    且超过 PUSH_DEADLINE 只更新报告不推送。"""
     assert job in JOBS, job
     now = now_cst()
     today: date = now.date()
@@ -85,6 +89,13 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False) ->
     h = store.holdings()
     risk = risk_of(h)
     state = store.state()
+    if once and job != "refresh" and state.get("done", {}).get(job) == tstr:
+        log.info("%s 今天已执行过，跳过本次重复触发", job)
+        return {}
+    hhmm = now.hour * 100 + now.minute
+    if once and push and hhmm > PUSH_DEADLINE.get(job, 2359):
+        log.warning("%s 实际运行时间 %02d:%02d 已晚于推送截止，只更新报告不推送", job, now.hour, now.minute)
+        push = False
     rep = store.report() or {}
     cash = float(h.get("cash") or 0)
     trades = h.get("trades") or []
@@ -153,6 +164,8 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False) ->
     rep["meta"] = {"date": tstr, "generated_at": now.strftime("%Y-%m-%d %H:%M:%S"), "job": job, "version": __version__,
                    "demo": demo, "llm": llm.enabled(), "disclaimer": DISCLAIMER,
                    "risk": {k: getattr(risk, k) for k in risk.__dataclass_fields__}}
+    if job != "refresh":
+        state.setdefault("done", {})[job] = tstr
     store.save_report(rep)
     store.save_state(state)
 

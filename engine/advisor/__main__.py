@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--demo", action="store_true", help="使用 data/demo_holdings.json 示例数据，输出明文报告")
     p.add_argument("--no-push", action="store_true")
     p.add_argument("--force", action="store_true", help="非交易日也执行")
+    p.add_argument("--once", action="store_true", help="自动触发用：当天已执行过则跳过；过了推送时段只更新报告")
     p = sub.add_parser("encrypt-holdings")
     p.add_argument("--in", dest="src", required=True)
     p = sub.add_parser("decrypt-holdings")
@@ -76,7 +77,7 @@ def main(argv: list[str] | None = None) -> None:
     a = ap.parse_args(argv)
 
     if a.cmd == "run":
-        run(a.job, demo=a.demo, push=not a.no_push, force=a.force)
+        run(a.job, demo=a.demo, push=not a.no_push, force=a.force, once=a.once)
     elif a.cmd == "encrypt-holdings":
         data = json.loads(open(a.src, encoding="utf-8").read())
         crypto.save_encrypted(HOLDINGS_ENC, data, _need_pw())
