@@ -105,11 +105,36 @@ def test_once_skips_duplicate_run_same_day(monkeypatch):
             return {"funds": [], "stocks": [], "cash": 0, "settings": {}}
 
         def state(self):
-            return {"done": {"close": jobs.now_cst().date().isoformat()}}
+            return {"done": {"close": "2026-11-17"}}
 
         def report(self):
             raise AssertionError("重复触发时不应继续执行")
 
     monkeypatch.setattr(jobs, "Store", FakeStore)
     monkeypatch.setattr(jobs.mk, "is_trade_day", lambda d: True)
+    import datetime as dt
+    monkeypatch.setattr(jobs, "now_cst", lambda: dt.datetime(2026, 11, 17, 14, 20, tzinfo=dt.timezone(dt.timedelta(hours=8))))
+    assert jobs.run("close", once=True) == {}
+
+
+def test_once_skips_before_window(monkeypatch):
+    from advisor import jobs
+    import datetime as dt
+
+    class FakeStore:
+        def __init__(self, demo=False):
+            pass
+
+        def holdings(self):
+            return {"funds": [], "stocks": [], "cash": 0, "settings": {}}
+
+        def state(self):
+            return {}
+
+        def report(self):
+            raise AssertionError("时段之前不应执行")
+
+    monkeypatch.setattr(jobs, "Store", FakeStore)
+    monkeypatch.setattr(jobs.mk, "is_trade_day", lambda d: True)
+    monkeypatch.setattr(jobs, "now_cst", lambda: dt.datetime(2026, 11, 17, 11, 30, tzinfo=dt.timezone(dt.timedelta(hours=8))))
     assert jobs.run("close", once=True) == {}

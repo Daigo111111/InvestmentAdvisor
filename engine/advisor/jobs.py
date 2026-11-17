@@ -22,8 +22,8 @@ from .portfolio import Store, portfolio_summary, risk_of
 from .util import log, now_cst, r, safe
 
 JOBS = ("morning", "close", "evening", "weekly", "refresh")
-# 自动触发（定时/外部定时器）时，超过这些北京时间就不再推送，避免收到过时的提醒（报告仍会更新）
-PUSH_DEADLINE = {"morning": 1130, "close": 1500, "evening": 2359, "weekly": 2359}
+# 自动触发（定时/外部定时器）的有效时段（北京时间 HHMM）：早于开始时间不执行；晚于截止时间只更新报告不推送
+PUSH_WINDOW = {"morning": (830, 1130), "close": (1400, 1500), "evening": (1930, 2359), "weekly": (900, 2359)}
 
 
 def _news_section(h: dict) -> dict:
@@ -89,13 +89,18 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False, on
     h = store.holdings()
     risk = risk_of(h)
     state = store.state()
-    if once and job != "refresh" and state.get("done", {}).get(job) == tstr:
-        log.info("%s 今天已执行过，跳过本次重复触发", job)
-        return {}
     hhmm = now.hour * 100 + now.minute
-    if once and push and hhmm > PUSH_DEADLINE.get(job, 2359):
-        log.warning("%s 实际运行时间 %02d:%02d 已晚于推送截止，只更新报告不推送", job, now.hour, now.minute)
-        push = False
+    start, end = PUSH_WINDOW.get(job, (0, 2359))
+    if once and job != "refresh":
+        if hhmm < start:
+            log.info("%s 还没到执行时段（%04d 之后），跳过", job, start)
+            return {}
+        if state.get("done", {}).get(job) == tstr:
+            log.info("%s 今天已执行过，跳过本次重复触发", job)
+            return {}
+        if push and hhmm > end:
+            log.warning("%s 实际运行时间 %02d:%02d 已晚于推送截止，只更新报告不推送", job, now.hour, now.minute)
+            push = False
     rep = store.report() or {}
     cash = float(h.get("cash") or 0)
     trades = h.get("trades") or []
@@ -164,7 +169,7 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False, on
     rep["meta"] = {"date": tstr, "generated_at": now.strftime("%Y-%m-%d %H:%M:%S"), "job": job, "version": __version__,
                    "demo": demo, "llm": llm.enabled(), "disclaimer": DISCLAIMER,
                    "risk": {k: getattr(risk, k) for k in risk.__dataclass_fields__}}
-    if job != "refresh":
+    if job != "refresh" and start <= hhmm:  # 只有在有效时段内执行才算「今天已完成」
         state.setdefault("done", {})[job] = tstr
     store.save_report(rep)
     store.save_state(state)
