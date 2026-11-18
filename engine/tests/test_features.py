@@ -105,7 +105,7 @@ def test_once_skips_duplicate_run_same_day(monkeypatch):
             return {"funds": [], "stocks": [], "cash": 0, "settings": {}}
 
         def state(self):
-            return {"done": {"close": "2026-11-17"}}
+            return {"done": {"close": "2026-11-17 1412"}}
 
         def report(self):
             raise AssertionError("重复触发时不应继续执行")

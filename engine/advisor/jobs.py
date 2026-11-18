@@ -95,7 +95,7 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False, on
         if hhmm < start:
             log.info("%s 还没到执行时段（%04d 之后），跳过", job, start)
             return {}
-        if state.get("done", {}).get(job) == tstr:
+        if str(state.get("done", {}).get(job, "")).startswith(tstr + " "):  # 记录格式 "YYYY-MM-DD HHMM"
             log.info("%s 今天已执行过，跳过本次重复触发", job)
             return {}
         if push and hhmm > end:
@@ -170,7 +170,7 @@ def run(job: str, demo: bool = False, push: bool = True, force: bool = False, on
                    "demo": demo, "llm": llm.enabled(), "disclaimer": DISCLAIMER,
                    "risk": {k: getattr(risk, k) for k in risk.__dataclass_fields__}}
     if job != "refresh" and start <= hhmm:  # 只有在有效时段内执行才算「今天已完成」
-        state.setdefault("done", {})[job] = tstr
+        state.setdefault("done", {})[job] = f"{tstr} {hhmm:04d}"
     store.save_report(rep)
     store.save_state(state)
 
