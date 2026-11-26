@@ -74,7 +74,7 @@ export function funds(rep, live, ls = {}) {
         <div class="kv"><span class="muted small">持有市值</span><b>${money(L && L.value != null ? L.value : m.value)}</b></div>
       </div>
       ${L && L.pnl != null ? `<div class="small" style="margin-top:4px">今日${L.actual != null ? '' : '估算'}盈亏 <b class="${cls(L.pnl)}">${L.pnl >= 0 ? '+' : ''}${money(L.pnl)}</b> 元
-        ${L.actual == null ? `<span class="muted">· 重仓覆盖 ${Math.round(L.coverage * 100)}%${m.est_pct != null ? ` · 14:10 建议时估算 ${pp(m.est_pct)}` : ''}</span>` : ''}</div>` : ''}
+        ${L.actual == null ? `<span class="muted">· 重仓覆盖 ${Math.round(L.coverage * 100)}%${L.coverage < 0.4 ? '（覆盖较低，误差可能较大，仅供参考）' : ''}${m.est_pct != null ? ` · 14:10 建议时估算 ${pp(m.est_pct)}` : ''}</span>` : ''}</div>` : ''}
       ${!L && f.category === 'qdii' ? '<div class="small muted" style="margin-top:4px">QDII 投资海外市场，无法用 A 股行情实时估算</div>' : ''}
       ${f.action !== '不动' ? `<div style="margin-top:6px"><b>建议：${esc(f.action)} ${Math.round((f.ratio || 0) * 100)}%</b>（约 ${money(f.amount)} 元${f.fee ? `，赎回费约 ${money(f.fee.fee)} 元` : ''}）</div>` : ''}
       ${reasonsList(f.reasons)}
