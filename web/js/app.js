@@ -3,8 +3,27 @@ import { esc, toast } from './ui.js';
 import * as V from './views.js';
 import * as V2 from './views2.js';
 import * as H from './holdings.js';
+import { computeLive, isMarketOpen } from './live.js';
 
-const st = { report: null, demo: false, zone: null, h: null, sha: null, draft: null, hSource: null };
+const st = { report: null, demo: false, zone: null, h: null, sha: null, draft: null, hSource: null,
+  live: null, liveAt: 0, liveLoading: false, liveErr: '' };
+let liveTimer = null;
+
+async function refreshLive(force = false) {
+  if (!st.report || st.liveLoading) return;
+  if (!force && st.live && Date.now() - st.liveAt < 30000) return;
+  st.liveLoading = true; st.liveErr = '';
+  paint();
+  try {
+    st.live = await computeLive(st.report);
+    st.liveAt = Date.now();
+  } catch (e) {
+    st.liveErr = e.message || '网络错误';
+  } finally {
+    st.liveLoading = false;
+    paint();
+  }
+}
 const view = document.getElementById('view');
 
 function lockScreen(msg) {
@@ -92,7 +111,7 @@ async function ensureReport() {
   }
   try {
     const { report, demo } = await loadReport();
-    st.report = report; st.demo = demo;
+    st.report = report; st.demo = demo; st.live = null; st.liveAt = 0;
     return true;
   } catch (e) {
     if (e.message === 'NEED_PW' || e.message === 'BAD_PW') {
@@ -111,25 +130,51 @@ async function route() {
   const tab = (location.hash.replace('#/', '') || 'home').split('?')[0];
   document.querySelectorAll('.tabs a').forEach((a) => a.classList.toggle('on', a.dataset.tab === tab));
   if (tab === 'me') {
+    clearInterval(liveTimer);
     view.innerHTML = mePage();
     bindMe();
     return;
   }
   const ok = await ensureReport();
   if (my !== seq || !ok) return;  // 等待解密期间用户已切换页面
-  const rep = st.report;
-  const meta = rep.meta || {};
+  const meta = st.report.meta || {};
   document.getElementById('badge').textContent = st.demo ? '演示数据' : '';
-  document.getElementById('updated').textContent = `更新于 ${meta.generated_at || '-'}（${{ morning: '早报', close: '尾盘', evening: '复盘', weekly: '周报', refresh: '手动' }[meta.job] || ''}）`;
-  const pages = { home: V.home, funds: V.funds, stocks: V.stocks, zones: (r) => V2.zones(r, st), plan: V2.plan };
+  document.getElementById('updated').textContent = `报告更新于 ${meta.generated_at || '-'}（${{ morning: '早报', close: '尾盘', evening: '复盘', weekly: '周报', refresh: '手动' }[meta.job] || ''}）`;
+  paint();
+  window.scrollTo(0, 0);
+  clearInterval(liveTimer);
+  if (tab === 'home' || tab === 'funds') {
+    refreshLive();
+    liveTimer = setInterval(() => { if (isMarketOpen() && !document.hidden) refreshLive(true); }, 60000);
+  }
+}
+
+function currentTab() { return (location.hash.replace('#/', '') || 'home').split('?')[0]; }
+
+/** 只重绘当前页面（不重新解密报告），实时估值更新时调用 */
+function paint() {
+  const tab = currentTab();
+  if (tab === 'me' || !st.report) return;
+  const rep = st.report;
+  const ls = { loading: st.liveLoading, err: st.liveErr };
+  const pages = { home: (r) => V.home(r, st.live, ls), funds: (r) => V.funds(r, st.live, ls), stocks: V.stocks,
+    zones: (r) => V2.zones(r, st), plan: V2.plan };
+  const y = window.scrollY;
   try {
-    view.innerHTML = (pages[tab] || V.home)(rep) + `<div class="disclaimer">${esc(meta.disclaimer || '')}</div>`;
+    view.innerHTML = (pages[tab] || pages.home)(rep) + `<div class="disclaimer">${esc((rep.meta || {}).disclaimer || '')}</div>`;
   } catch (e) {
     view.innerHTML = `<div class="card">该页面数据不完整，等待下一次分析任务后再试。（${esc(e.message)}）</div>`;
   }
-  view.querySelectorAll('[data-zone]').forEach((b) => b.addEventListener('click', () => { st.zone = b.dataset.zone; route(); }));
-  window.scrollTo(0, 0);
+  window.scrollTo(0, y);
+  view.querySelectorAll('[data-zone]').forEach((b) => b.addEventListener('click', () => { st.zone = b.dataset.zone; paint(); }));
+  const rb = document.getElementById('liveRefresh');
+  if (rb) rb.onclick = () => refreshLive(true);
 }
+
+// 从后台切回应用时，如果估值超过 1 分钟没更新就自动刷新
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && ['home', 'funds'].includes(currentTab())) refreshLive();
+});
 
 window.addEventListener('hashchange', route);
 route();

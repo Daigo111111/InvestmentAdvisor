@@ -136,6 +136,12 @@ def analyze_funds(items: list[dict], risk: RiskSettings, today: date, intraday: 
         adv["metrics"].update({"est_pct_em": x.get("est_pct_em"), "est_own": x.get("est_own"),
                                "est_note": x.get("est_note"), "realized": x["holding"].get("realized"),
                                "n_trades": x["holding"].get("n_trades"), "pending": x["holding"].get("pending")})
+        # 供网页端随时用实时行情重新估算（盘中、收盘后到净值公布前都可用）
+        live_ok = x["category"] in ("equity", "fof") and not x["hold_df"].empty
+        adv["live"] = {"pos": fa.position_factor(x["type"]), "beta": x.get("est_beta") or 1.0,
+                       "holdings": [{"code": str(c).zfill(6), "name": n, "weight": r(w, 2)}
+                                    for c, n, w in zip(x["hold_df"]["code"], x["hold_df"]["name"], x["hold_df"]["weight"])]
+                       } if live_ok else None
         adv["nav_curve"] = [{"d": d.strftime("%Y-%m-%d"), "v": r(v, 4)} for d, v in x["nav"]["acc_nav"].tail(250).iloc[::2].items()]
         adv["backtest"] = None
         out.append(adv)

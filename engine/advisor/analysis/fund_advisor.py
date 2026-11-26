@@ -13,11 +13,16 @@ from . import indicators as ind
 DEFAULT_POSITION = {"股票型": 0.92, "指数型": 0.95}
 
 
+def position_factor(ftype: str) -> float:
+    """估算用的股票仓位（季报只披露前十大，按基金类型取典型仓位）。"""
+    return next((v for k, v in DEFAULT_POSITION.items() if k in (ftype or "")), 0.88)
+
+
 def estimate_change(holdings: pd.DataFrame, quotes: pd.DataFrame, ftype: str, today: date | None = None) -> dict:
     """用前十大重仓股实时涨跌估算当日净值涨跌幅(%)。只使用当日的行情（停牌/非交易日的行情不计入）。"""
     if holdings.empty or quotes is None or quotes.empty:
         return {"est_pct": None, "coverage": 0.0, "contrib": []}
-    pos = next((v for k, v in DEFAULT_POSITION.items() if k in (ftype or "")), 0.88)
+    pos = position_factor(ftype)
     day = today.strftime("%Y%m%d") if today else None
     rows, wsum, acc = [], 0.0, 0.0
     for _, h in holdings.iterrows():
