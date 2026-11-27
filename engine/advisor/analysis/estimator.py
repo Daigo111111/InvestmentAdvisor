@@ -54,11 +54,15 @@ def _ret(s: pd.Series) -> pd.Series:
     return s.pct_change().dropna() * 100
 
 
-def basket_returns(holdings: pd.DataFrame) -> tuple[pd.Series | None, list[dict]]:
-    """前十大持仓的加权日收益（%），只用能取到行情的 A股/港股。"""
+def basket_returns(holdings: pd.DataFrame, category: str = "equity") -> tuple[pd.Series | None, list[dict]]:
+    """前十大持仓的加权日收益（%），只用能取到行情的 A股/港股。
+    QDII 的 6 位数字代码多为韩国/台湾等市场股票（如三星 005930），不能当 A 股处理，跳过。"""
     parts, ws, used = [], [], []
     for _, h in holdings.iterrows():
-        sym = mk.holding_symbol(h["code"])
+        code = str(h["code"]).strip()
+        if category == "qdii" and code.isdigit() and len(code) == 6:
+            continue
+        sym = mk.holding_symbol(code)
         if not sym:
             continue
         s = safe(lambda sym=sym: mk.tx_kline(sym), None, f"kline {sym}")
@@ -120,7 +124,7 @@ def select_model(name: str, category: str, holdings: pd.DataFrame, nav: pd.DataF
 
     factors: dict[str, tuple[dict, pd.Series]] = {}
     if not holdings.empty:
-        bx, used = basket_returns(holdings)
+        bx, used = basket_returns(holdings, category)
         if bx is not None and used:
             factors["basket"] = ({"kind": "basket", "holdings": used}, with_fx(bx))
     for sym in candidates(name, category, holdings):
