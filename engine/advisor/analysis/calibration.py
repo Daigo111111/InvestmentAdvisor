@@ -29,9 +29,10 @@ def mae(hist: list[dict], key: str, beta: float = 1.0) -> tuple[float | None, in
     return sum(abs(x[key] * beta - x["actual"]) for x in rows) / len(rows), len(rows)
 
 
-def calibrate(own: float | None, em: float | None, coverage: float, hist: list[dict]) -> dict:
-    """返回 {est, source, beta, mae, note}。"""
-    beta, nb = beta_of(hist)
+def calibrate(own: float | None, em: float | None, coverage: float, hist: list[dict], apply_beta: bool = True,
+              own_name: str = "重仓股估算") -> dict:
+    """返回 {est, source, beta, mae, note}。own 已由估值模型回归校正时 apply_beta=False，只做来源选择。"""
+    beta, nb = beta_of(hist) if apply_beta else (1.0, 0)
     own_c = own * beta if own is not None else None
     mae_own, n_own = mae(hist, "own", beta)
     mae_em, n_em = mae(hist, "em")
@@ -53,7 +54,7 @@ def calibrate(own: float | None, em: float | None, coverage: float, hist: list[d
         notes.append(f"已按近{nb}日误差校正×{beta:.2f}")
     if m is not None and n >= MIN_SAMPLES:
         notes.append(f"近{n}日平均误差 {m:.2f}%")
-    return {"est": r(est, 2), "source": "重仓股估算" if pick == "own" else "东财估值", "beta": r(beta, 3),
+    return {"est": r(est, 2), "source": own_name if pick == "own" else "东财估值", "beta": r(beta, 3),
             "mae": r(m, 3), "note": "，".join(notes)}
 
 

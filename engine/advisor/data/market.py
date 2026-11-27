@@ -77,6 +77,7 @@ def stock_names() -> dict[str, str]:
 @cached(6 * 3600)
 @retry()
 def _stock_hist_tx(code: str, start: str) -> pd.DataFrame:
+    _throttle()
     sym = market_prefix(code) + code
     s = f"{start[:4]}-{start[4:6]}-{start[6:]}"
     url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,{s},,640,qfq"
@@ -150,3 +151,111 @@ def index_quotes(symbols: list[str]) -> pd.DataFrame:
             f = line.split("=", 1)[1].strip('"\n ').split("~")
             rows.append({"symbol": line.split("=")[0].strip().replace("v_", ""), "name": f[1], "price": num(f[3]), "pct": num(f[32])})
     return pd.DataFrame(rows)
+
+
+# ---------- 通用行情（A股 / 港股 / 美股指数 / 汇率），供基金估值模型使用 ----------
+# 统一用腾讯行情代码：A股/指数 sh000922、港股 hkHSTECH / hk00700、美股指数 usNDX、汇率 whUSDCNY
+
+def kline_code(sym: str) -> str:
+    """K线接口的代码：美股需写成 us.NDX，其余与行情代码相同。"""
+    return "us." + sym[2:] if sym.startswith("us") and not sym.startswith("us.") else sym
+
+
+_last_call = [0.0]
+
+
+def _throttle(gap: float = 0.25) -> None:
+    """连续请求之间留间隔，避免触发行情网站的防火墙限流。"""
+    import time
+    wait = _last_call[0] + gap - time.time()
+    if wait > 0:
+        time.sleep(wait)
+    _last_call[0] = time.time()
+
+
+@retry(times=2)
+def _tx_kline_raw(sym: str, n: int) -> list:
+    _throttle()
+    k = kline_code(sym)
+    url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={k},day,,,{n},qfq"
+    d = requests.get(url, headers=UA, timeout=15).json()["data"][k]
+    return d.get("qfqday") or d.get("day") or []
+
+
+def _sina_daily(sym: str) -> pd.Series | None:
+    """新浪日线（腾讯被限流时的备用源）。"""
+    _throttle()
+    if sym.startswith(("sh000", "sz399")):
+        df = ak.stock_zh_index_daily(symbol=sym)
+    elif sym.startswith(("sh5", "sz1")):
+        df = ak.fund_etf_hist_sina(symbol=sym)
+    elif sym.startswith(("sh", "sz")):
+        df = ak.stock_zh_a_daily(symbol=sym, adjust="qfq")
+    elif sym.startswith("hk") and sym[2:].isdigit():
+        df = ak.stock_hk_daily(symbol=sym[2:], adjust="qfq")
+    elif sym.startswith("hk"):
+        df = ak.stock_hk_index_daily_sina(symbol=sym[2:])
+    elif sym.startswith("us"):
+        df = ak.index_us_stock_sina(symbol="." + sym[2:].lstrip("."))
+    else:
+        return None
+    s = pd.Series(df["close"].astype(float).values, index=pd.to_datetime(df["date"]))
+    return s.sort_index().tail(400)
+
+
+@cached(12 * 3600)
+def tx_kline(sym: str, n: int = 320) -> pd.Series:
+    """日K收盘价（A股/港股前复权；美股为指数），腾讯优先、新浪备用。index=日期。"""
+    rows = []
+    try:
+        rows = _tx_kline_raw(sym, n)
+    except Exception:  # noqa: BLE001 腾讯失败或被限流时用新浪
+        rows = []
+    if len(rows) >= 30:
+        s = pd.Series([float(r[2]) for r in rows], index=pd.to_datetime([r[0] for r in rows]))
+    else:
+        s = _sina_daily(sym)
+        if s is None or len(s) < 30:
+            raise ValueError(f"{sym} 日K数据不足")
+    return s[~s.index.duplicated(keep="last")].sort_index()
+
+
+@retry()
+def _tx_any(syms: list[str]) -> dict[str, dict]:
+    txt = requests.get("https://qt.gtimg.cn/q=" + ",".join(syms), headers=UA, timeout=15).content.decode("gbk", "ignore")
+    out = {}
+    for line in txt.split(";"):
+        if '="' not in line:
+            continue
+        key = line.split("=", 1)[0].strip().replace("v_", "")
+        f = line.split('="', 1)[1].strip('"\n ').split("~")
+        if key.startswith("wh"):  # 汇率：f[3] 最新价，f[6] 昨收
+            price, prev = num(f[3]), num(f[6]) if len(f) > 6 else None
+            pct = (price / prev - 1) * 100 if price and prev else None
+            t = f[5] if len(f) > 5 else ""
+        else:
+            if len(f) < 33:
+                continue
+            pct, t = num(f[32]), f[30]
+        if pct is not None:
+            out[key] = {"pct": pct, "date": "".join(ch for ch in t if ch.isdigit())[:8]}
+    return out
+
+
+def quotes_any(syms: list[str]) -> dict[str, dict]:
+    """批量实时涨跌幅（%）及行情日期 YYYYMMDD。"""
+    syms = list(dict.fromkeys(syms))
+    out: dict[str, dict] = {}
+    for i in range(0, len(syms), 60):
+        out.update(_tx_any(syms[i:i + 60]))
+    return out
+
+
+def holding_symbol(code: str) -> str | None:
+    """基金持仓代码 → 行情代码：6 位数字为 A 股，5 位数字为港股；美股个股暂无可靠日K，返回 None。"""
+    c = str(code).strip().upper()
+    if c.isdigit() and len(c) == 6:
+        return market_prefix(c) + c
+    if c.isdigit() and len(c) <= 5:
+        return "hk" + c.zfill(5)
+    return None

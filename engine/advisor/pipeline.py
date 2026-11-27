@@ -7,6 +7,7 @@ import pandas as pd
 
 from . import ledger
 from .analysis import calibration as cal
+from .analysis import estimator as es
 from .analysis import fund_advisor as fa
 from .analysis.stock_advisor import advise_stock
 from .analysis.sentiment import stock_sentiment
@@ -107,22 +108,35 @@ def analyze_funds(items: list[dict], risk: RiskSettings, today: date, intraday: 
                              f"holdings {code}")
         ctxs.append({"code": code, "name": basic["name"], "type": basic["type"], "category": fd.fund_category(basic["type"]),
                      "nav": it["nav"], "holding": it["holding"], "hold_df": hold, "quarter": quarter})
-    all_codes = sorted({c for x in ctxs for c in x["hold_df"]["code"].astype(str)})
-    quotes = safe(lambda: mk.quotes(all_codes), pd.DataFrame(), "quotes") if all_codes else pd.DataFrame()
+    # 估值模型：每天用近 60 个交易日的实际净值回测，自动选最准的估算方式（重仓股组合 / 跟踪指数 / 两者组合）
+    for x in ctxs:
+        x["model"] = safe(lambda: es.model_for(x["code"], x["name"], x["category"], today.isoformat()), None,
+                          f"model {x['code']}") if x["category"] in ("equity", "fof", "qdii", "bond") else None
+    syms = sorted({s for x in ctxs if x["model"] for s in es.symbols_of(x["model"])})
+    live_q = safe(lambda: mk.quotes_any(syms), {}, "quotes_any") if intraday and syms else {}
+    all_codes = sorted({str(c).zfill(6) for x in ctxs if not x["model"] for c in x["hold_df"]["code"].astype(str)
+                        if str(c).isdigit() and len(str(c)) == 6})
+    quotes = safe(lambda: mk.quotes(all_codes), pd.DataFrame(), "quotes") if intraday and all_codes else pd.DataFrame()
+    tday = today.strftime("%Y%m%d")
     for x in ctxs:
         latest_is_today = x["nav"].index[-1].date() >= today
         live = intraday and not latest_is_today
         est = {"est_pct": None, "coverage": 0.0, "contrib": []}
-        if live and x["category"] in ("equity", "fof"):
+        own_name = "重仓股估算"
+        if live and x["model"]:
+            le = es.live_estimate(x["model"], live_q)
+            if le and le["date"] == tday:  # 只用当天的行情（美股基金白天只有前一晚收盘，属于上一个净值日）
+                est = {"est_pct": le["est"], "coverage": le["coverage"], "contrib": []}
+                own_name = "估值模型：" + x["model"]["name"]
+        elif live and x["category"] in ("equity", "fof"):
             est = fa.estimate_change(x["hold_df"], quotes, x["type"], today)
         x.update(est)
         x["est_own"] = est["est_pct"]
         x["est_pct_em"] = float(est_all.loc[x["code"], "est_pct"]) \
             if live and trade_day and not est_all.empty and x["code"] in est_all.index else None
-        c = cal.calibrate(x["est_own"], x["est_pct_em"], x["coverage"], state.get("est_hist", {}).get(x["code"], []))
+        c = cal.calibrate(x["est_own"], x["est_pct_em"], x["coverage"], state.get("est_hist", {}).get(x["code"], []),
+                          apply_beta=not x["model"], own_name=own_name)
         x["est_pct"], x["est_source"], x["est_note"], x["est_beta"] = c["est"], c["source"], c["note"], c["beta"]
-        if x["category"] == "qdii":
-            x["est_pct"], x["est_source"], x["est_note"] = None, "QDII 无法用A股估值，净值T+1/T+2公布", ""
         x["sector"] = _main_board(x["hold_df"], industry, boards)
         x["sector_pct"] = board_pct.get(x["sector"]) if x["sector"] else None
         x["rank_pct"] = safe(lambda: _rank_pct(x["code"], rank, flist), None, "rank_pct")
@@ -136,12 +150,8 @@ def analyze_funds(items: list[dict], risk: RiskSettings, today: date, intraday: 
         adv["metrics"].update({"est_pct_em": x.get("est_pct_em"), "est_own": x.get("est_own"),
                                "est_note": x.get("est_note"), "realized": x["holding"].get("realized"),
                                "n_trades": x["holding"].get("n_trades"), "pending": x["holding"].get("pending")})
-        # 供网页端随时用实时行情重新估算（盘中、收盘后到净值公布前都可用）
-        live_ok = x["category"] in ("equity", "fof") and not x["hold_df"].empty
-        adv["live"] = {"pos": fa.position_factor(x["type"]), "beta": x.get("est_beta") or 1.0,
-                       "holdings": [{"code": str(c).zfill(6), "name": n, "weight": r(w, 2)}
-                                    for c, n, w in zip(x["hold_df"]["code"], x["hold_df"]["name"], x["hold_df"]["weight"])]
-                       } if live_ok else None
+        # 供网页端随时用实时行情套用同一个估值模型（盘中、收盘后到净值公布前、QDII 海外收盘后都可用）
+        adv["live"] = x["model"]
         adv["nav_curve"] = [{"d": d.strftime("%Y-%m-%d"), "v": r(v, 4)} for d, v in x["nav"]["acc_nav"].tail(250).iloc[::2].items()]
         adv["backtest"] = None
         out.append(adv)

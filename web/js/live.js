@@ -1,78 +1,109 @@
-// 网页端实时估值：直接从腾讯行情接口（支持跨域）拉取重仓股最新涨跌，在手机上随时重新估算基金当日涨跌。
-// 盘中是实时估算；15:00 收盘后到当晚净值公布前，是按收盘价算出的「收盘估算」；净值公布后以实际净值为准。
+// 网页端实时估值：从腾讯行情接口（支持跨域）拉取最新行情，套用服务器每天回测选出的估值模型，随时重新估算基金涨跌。
+// 模型由若干成分组成（重仓股组合 / 跟踪指数），每个成分有回归系数；QDII 还叠加美元兑人民币汇率变化。
+// 算法与引擎 analysis/estimator.py 的 live_estimate 保持一致。
 
 const QUOTE_URL = 'https://qt.gtimg.cn/q=';
-const prefix = (c) => (/^[69]/.test(c) || /^(50|51|56|58|11)/.test(c) ? 'sh' : /^[48]/.test(c) ? 'bj' : 'sz');
+const FX = 'whUSDCNY';
+const digits = (s) => (s || '').replace(/\D/g, '').slice(0, 8);
 
-async function fetchBatch(codes) {
-  const r = await fetch(QUOTE_URL + codes.map((c) => prefix(c) + c).join(','), { cache: 'no-store' });
+async function fetchBatch(syms) {
+  const r = await fetch(QUOTE_URL + syms.join(','), { cache: 'no-store' });
   if (!r.ok) throw new Error(`行情接口 HTTP ${r.status}`);
   const text = new TextDecoder('gbk').decode(await r.arrayBuffer());
   const out = {};
   for (const line of text.split(';')) {
     const i = line.indexOf('="');
     if (i < 0) continue;
+    const key = line.slice(0, i).trim().replace(/^v_/, '');
     const f = line.slice(i + 2).split('~');
-    if (f.length < 33) continue;
-    const pct = parseFloat(f[32]);
-    if (!Number.isNaN(pct)) out[f[2]] = { pct, price: parseFloat(f[3]), time: f[30] || '' };
+    let pct, t;
+    if (key.startsWith('wh')) {  // 汇率：f[3] 最新价，f[6] 昨收
+      const p = parseFloat(f[3]), prev = parseFloat(f[6]);
+      pct = p && prev ? (p / prev - 1) * 100 : NaN; t = f[5];
+    } else {
+      if (f.length < 33) continue;
+      pct = parseFloat(f[32]); t = f[30];
+    }
+    if (!Number.isNaN(pct)) out[key] = { pct, date: digits(t) };
   }
   return out;
 }
 
-export async function fetchQuotes(codes) {
-  const uniq = [...new Set(codes)];
+export async function fetchQuotes(syms) {
+  const uniq = [...new Set(syms)];
   const parts = [];
   for (let i = 0; i < uniq.length; i += 60) parts.push(fetchBatch(uniq.slice(i, i + 60)));
   return Object.assign({}, ...(await Promise.all(parts)));
 }
 
-const fmtDate = (t) => `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
-
-/** 计算每只基金的实时估值，返回 {byCode, tradeDate, updatedAt, phase} */
-export async function computeLive(rep) {
-  const funds = (rep.funds || []).filter((f) => f.live && f.live.holdings && f.live.holdings.length);
-  if (!funds.length) return null;
-  const quotes = await fetchQuotes(funds.flatMap((f) => f.live.holdings.map((h) => h.code)));
-  // 行情所属交易日 = 所有报价里最新的日期（停牌股的旧报价不参与）
-  const latest = Object.values(quotes).map((q) => q.time.slice(0, 8)).filter(Boolean).sort().pop();
-  if (!latest) return null;
-  const tradeDate = fmtDate(latest);
-  const byCode = {};
-  for (const f of funds) {
-    let wsum = 0, acc = 0;
-    for (const h of f.live.holdings) {
-      const q = quotes[h.code];
-      if (!q || !q.time.startsWith(latest)) continue;
-      wsum += h.weight; acc += h.weight * q.pct;
-    }
-    if (!wsum) continue;
-    const est = (acc / wsum) * f.live.pos * (f.live.beta || 1);
-    const m = f.metrics || {};
-    const published = m.nav_date && m.nav_date >= tradeDate;  // 报告里已有当日真实净值
-    // 报告里的市值可能已含 14:10 的估算，先还原成「最新已公布净值 × 份额」再套用实时估算，避免重复计算
-    const base = m.value != null ? m.value / (1 + (m.est_pct || 0) / 100) : null;
-    const pct = published ? m.last_pct : Math.round(est * 100) / 100;
-    byCode[f.code] = {
-      est: Math.round(est * 100) / 100,
-      coverage: Math.min(1, wsum / 100 / f.live.pos),
-      actual: published ? m.last_pct : null,
-      value: published ? m.value : base != null ? base * (1 + est / 100) : null,
-      pnl: base != null && pct != null ? (published ? m.value - m.value / (1 + pct / 100) : base * est / 100) : null,
-    };
-  }
-  const now = new Date();
-  const hhmm = now.getHours() * 100 + now.getMinutes();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  let phase = '收盘估算';
-  if (tradeDate === todayStr && hhmm >= 930 && hhmm < 1500) phase = '盘中实时';
-  else if (tradeDate === todayStr && hhmm < 930) phase = '未开盘';
-  return { byCode, tradeDate, phase, updatedAt: now.toTimeString().slice(0, 8) };
+function symbolsOf(model) {
+  const s = model.components.flatMap((c) => (c.kind === 'basket' ? c.holdings.map((h) => h.symbol) : [c.symbol]));
+  return model.fx ? [...s, FX] : s;
 }
 
-/** 盘中（交易日 9:30–15:00）才需要自动刷新 */
+function compLive(c, q) {
+  if (c.kind === 'basket') {
+    const rows = c.holdings.map((h) => [h.weight, q[h.symbol]]);
+    const dates = rows.map(([, x]) => x && x.date).filter(Boolean).sort();
+    if (!dates.length) return null;
+    const latest = dates[dates.length - 1];
+    const ok = rows.filter(([, x]) => x && x.date === latest);
+    const w = ok.reduce((a, [wt]) => a + wt, 0);
+    if (!w) return null;
+    return { x: ok.reduce((a, [wt, x]) => a + wt * x.pct, 0) / w, date: latest,
+      cov: w / c.holdings.reduce((a, h) => a + h.weight, 0) };
+  }
+  const x = q[c.symbol];
+  return x ? { x: x.pct, date: x.date, cov: 1 } : null;
+}
+
+export function applyModel(model, q) {
+  const fx = model.fx && q[FX] ? q[FX].pct : null;
+  let total = 0; const dates = []; let cov = 1;
+  for (const c of model.components) {
+    const v = compLive(c, q);
+    if (!v) return null;
+    const x = fx != null ? ((1 + v.x / 100) * (1 + fx / 100) - 1) * 100 : v.x;
+    total += c.beta * x; dates.push(v.date); cov = Math.min(cov, v.cov);
+  }
+  return { est: Math.round(total * 100) / 100, date: dates.sort().pop(), cov };
+}
+
+const fmtDate = (t) => `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+/** 计算每只基金的实时估值，返回 {byCode, phase, updatedAt} */
+export async function computeLive(rep) {
+  const funds = (rep.funds || []).filter((f) => f.live && f.live.components && f.live.components.length);
+  if (!funds.length) return null;
+  const q = await fetchQuotes(funds.flatMap((f) => symbolsOf(f.live)));
+  const byCode = {};
+  let anyToday = false;
+  const now = new Date(), hhmm = now.getHours() * 100 + now.getMinutes();
+  for (const f of funds) {
+    const v = applyModel(f.live, q);
+    if (!v || !v.date) continue;
+    const navDate = fmtDate(v.date);  // 这次估算对应的净值日期（美股基金白天是前一晚美股收盘对应的那天）
+    const m = f.metrics || {};
+    const published = m.nav_date && m.nav_date >= navDate;
+    const base = m.value != null ? m.value / (1 + (m.est_pct || 0) / 100) : null;
+    const pct = published ? m.last_pct : v.est;
+    const isToday = navDate === todayStr();
+    anyToday = anyToday || isToday;
+    byCode[f.code] = {
+      est: v.est, coverage: v.cov, navDate, actual: published ? m.last_pct : null,
+      state: published ? '实际' : isToday && (hhmm < 1610 || (f.category === 'qdii' && hhmm >= 2130)) ? '实时' : '收盘',
+      value: published ? m.value : base != null ? base * (1 + v.est / 100) : null,
+      pnl: base != null && pct != null ? (published ? m.value - m.value / (1 + pct / 100) : base * v.est / 100) : null,
+    };
+  }
+  const phase = anyToday && hhmm >= 930 && hhmm < 1500 ? '盘中实时' : '收盘估算';
+  return { byCode, phase, updatedAt: now.toTimeString().slice(0, 8) };
+}
+
+/** 交易时段（A股/港股 9:30–16:10）才需要自动刷新 */
 export function isMarketOpen() {
   const d = new Date();
   const day = d.getDay(), hhmm = d.getHours() * 100 + d.getMinutes();
-  return day >= 1 && day <= 5 && ((hhmm >= 930 && hhmm <= 1130) || (hhmm >= 1300 && hhmm <= 1500));
+  return day >= 1 && day <= 5 && hhmm >= 930 && hhmm <= 1610;
 }

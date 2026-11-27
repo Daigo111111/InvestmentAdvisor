@@ -68,6 +68,13 @@ export function plan(rep) {
     html += `<div class="card"><h3>板块轮动</h3><div class="small muted">综合动量、趋势、资金流向和新闻热度打分（同花顺行业）</div>
       <h4>强势</h4>${t(rot.top)}<h4>弱势</h4>${t(rot.bottom)}</div>`;
   }
+  const models = (rep.funds || []).filter((f) => f.live);
+  if (models.length) {
+    html += `<div class="card"><h3>估算准确度</h3><div class="small muted">每天净值公布后，用近 60 个交易日的实际涨跌重新回测并自动选择估算方式（下表为样本外检验结果）。</div>
+      <table><tr><th>基金</th><th>估算方式</th><th>平均误差</th><th>方向准确</th></tr>
+      ${models.map((f) => `<tr><td>${esc(f.name)}</td><td class="small">${esc(f.live.name)}${f.live.fx ? '（含汇率）' : ''}</td>
+        <td>${esc(f.live.mae)}%</td><td>${f.live.hit != null ? Math.round(f.live.hit * 100) + '%' : '-'}</td></tr>`).join('')}</table></div>`;
+  }
   html += trackingCard(rep.tracking);
   const chk = rep.est_check || [];
   if (chk.length) {

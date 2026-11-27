@@ -4,7 +4,7 @@ const act = (a) => `<span class="tag act-${esc(a)}">${esc(a)}</span>`;
 
 function liveBar(live, loading, err) {
   const st = loading ? '正在获取最新行情…' : err ? `实时行情获取失败：${esc(err)}` : live
-    ? `${esc(live.phase)} · 行情日期 ${esc(live.tradeDate)} · 更新于 ${esc(live.updatedAt)}${live.phase === '盘中实时' ? ' · 每分钟自动刷新' : ''}`
+    ? `${esc(live.phase)} · 更新于 ${esc(live.updatedAt)}${live.phase === '盘中实时' ? ' · 交易时段每分钟自动刷新' : ''}`
     : '暂无可实时估算的基金';
   return `<div class="row small"><span class="muted">${st}</span><button class="ghost" id="liveRefresh">刷新估算</button></div>`;
 }
@@ -59,13 +59,15 @@ export function funds(rep, live, ls = {}) {
   const todayPnl = liveTotal(live);
   return `<div class="card">${liveBar(live, ls.loading, ls.err)}
     ${todayPnl != null ? `<div class="small" style="margin-top:4px">全部基金今日估算盈亏 <b class="${cls(todayPnl)}">${todayPnl >= 0 ? '+' : ''}${money(todayPnl)}</b> 元</div>` : ''}
-    <div class="small muted" style="margin-top:4px">实时估算用重仓股最新行情在手机上计算，随时可刷新；收盘后到当晚净值公布前显示收盘估算，净值公布并完成晚间复盘后显示实际涨跌。</div></div>
+    <div class="small muted" style="margin-top:4px">估算在手机上用最新行情实时计算，随时可刷新。每只基金的估算方式由系统每天用近 60 个交易日的实际净值回测选出（重仓股组合、跟踪指数或两者组合），QDII 叠加汇率变化。收盘后到净值公布前显示收盘估算，净值公布并完成晚间复盘后显示实际涨跌。</div></div>
     <div class="card small muted">交易规则：交易日 15:00 前申购/赎回按当日净值确认，15:00 后按下一交易日净值；一般 T+1 确认份额，
     QDII 多为 T+2。持有不满 7 天赎回通常收取 1.5% 惩罚性费用。</div>` + list.map((f) => {
     const m = f.metrics || {}, bt = f.backtest;
     const L = live && live.byCode[f.code];
-    const label = L ? (L.actual != null ? '今日实际' : live.phase === '盘中实时' ? '实时估算' : '收盘估算') : '今日估算';
+    const md = (d) => (d ? d.slice(5) : '');
+    const label = L ? ({ 实际: '实际涨跌', 实时: '实时估算', 收盘: '收盘估算' }[L.state]) + (L.navDate ? ` ${md(L.navDate)}` : '') : '今日估算';
     const shown = L ? (L.actual != null ? L.actual : L.est) : m.est_pct;
+    const mdl = f.live;
     return `<div class="card">
       <div class="row"><div><b>${esc(f.name)}</b> <span class="muted small">${esc(f.code)} · ${esc(f.type)}</span></div>${act(f.action)}</div>
       <div class="grid" style="margin-top:8px">
@@ -73,9 +75,18 @@ export function funds(rep, live, ls = {}) {
         <div class="kv"><span class="muted small">持有收益</span><b class="${cls(m.ret_hold)}">${pct(m.ret_hold)}</b></div>
         <div class="kv"><span class="muted small">持有市值</span><b>${money(L && L.value != null ? L.value : m.value)}</b></div>
       </div>
-      ${L && L.pnl != null ? `<div class="small" style="margin-top:4px">今日${L.actual != null ? '' : '估算'}盈亏 <b class="${cls(L.pnl)}">${L.pnl >= 0 ? '+' : ''}${money(L.pnl)}</b> 元
-        ${L.actual == null ? `<span class="muted">· 重仓覆盖 ${Math.round(L.coverage * 100)}%${L.coverage < 0.4 ? '（覆盖较低，误差可能较大，仅供参考）' : ''}${m.est_pct != null ? ` · 14:10 建议时估算 ${pp(m.est_pct)}` : ''}</span>` : ''}</div>` : ''}
-      ${!L && f.category === 'qdii' ? '<div class="small muted" style="margin-top:4px">QDII 投资海外市场，无法用 A 股行情实时估算</div>' : ''}
+      ${L && L.pnl != null ? `<div class="small" style="margin-top:4px">${L.actual != null ? '' : '估算'}盈亏 <b class="${cls(L.pnl)}">${L.pnl >= 0 ? '+' : ''}${money(L.pnl)}</b> 元
+        ${L.actual == null && L.coverage < 0.95 ? `<span class="muted">· 部分持仓无行情（覆盖 ${Math.round(L.coverage * 100)}%）</span>` : ''}
+        ${L.actual == null && m.est_pct != null ? `<span class="muted">· 14:10 建议时估算 ${pp(m.est_pct)}</span>` : ''}</div>` : ''}
+      ${f.category === 'qdii' && L && L.actual == null ? `<div class="small muted" style="margin-top:4px">QDII 净值通常在 T+1 晚间公布；美股基金在北京时间白天显示的是前一晚美股收盘对应的净值估算（${esc(md(L.navDate))}），晚上美股开盘后显示当天的实时估算。</div>` : ''}
+      ${mdl ? `<div class="small" style="margin-top:4px">估算方式：<b>${esc(mdl.name)}</b>${mdl.fx ? ' · 含汇率' : ''}
+        <span class="muted">· 近 ${esc(mdl.n)} 日回测平均误差 ${esc(mdl.mae)}% · 方向准确率 ${mdl.hit != null ? Math.round(mdl.hit * 100) + '%' : '-'}</span></div>
+      <details><summary>估算 vs 实际（近10个交易日）</summary>
+        <table><tr><th>日期</th><th>估算</th><th>实际</th><th>误差</th></tr>
+        ${(mdl.check || []).slice().reverse().map((c) => `<tr><td>${esc(md(c.d))}</td><td>${pp(c.est)}</td><td class="${cls(c.actual)}">${pp(c.actual)}</td><td>${pp(c.err)}</td></tr>`).join('')}</table>
+        ${(mdl.alternatives || []).length ? `<div class="small muted">其他候选：${mdl.alternatives.map((a) => `${esc(a.name)}（误差 ${esc(a.mae)}%）`).join('；')}</div>` : ''}
+        <div class="small muted">每天净值公布后重新回测：用较早 2/3 的日子拟合系数，在最近 1/3 的日子上检验，按误差最小自动更换估算方式。</div>
+      </details>` : ''}
       ${f.action !== '不动' ? `<div style="margin-top:6px"><b>建议：${esc(f.action)} ${Math.round((f.ratio || 0) * 100)}%</b>（约 ${money(f.amount)} 元${f.fee ? `，赎回费约 ${money(f.fee.fee)} 元` : ''}）</div>` : ''}
       ${reasonsList(f.reasons)}
       ${m.n_trades ? `<div class="small muted">已记录 ${esc(m.n_trades)} 笔交易${m.realized ? ` · 已实现收益 ${money(m.realized)} 元` : ''}${m.pending ? ' · 有买入尚未按净值确认，份额暂按最新净值估算' : ''}</div>` : ''}

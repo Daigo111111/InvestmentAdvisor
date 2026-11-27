@@ -138,3 +138,30 @@ def test_once_skips_before_window(monkeypatch):
     monkeypatch.setattr(jobs.mk, "is_trade_day", lambda d: True)
     monkeypatch.setattr(jobs, "now_cst", lambda: dt.datetime(2026, 11, 17, 11, 30, tzinfo=dt.timezone(dt.timedelta(hours=8))))
     assert jobs.run("close", once=True) == {}
+
+
+def test_estimator_selects_best_factor_and_live_estimate(monkeypatch):
+    import numpy as np
+    from advisor.analysis import estimator as es
+
+    idx = pd.bdate_range(end="2026-11-06", periods=80)
+    rng = np.random.default_rng(0)
+    good = pd.Series(np.cumprod(1 + rng.normal(0, 0.01, 80)) * 100, index=idx)
+    bad = pd.Series(np.cumprod(1 + rng.normal(0, 0.01, 80)) * 100, index=idx)
+    y = good.pct_change() * 100 * 0.9 + rng.normal(0, 0.02, 80)  # 基金 ≈ 0.9 × good 指数
+    nav = pd.DataFrame({"pct": y.fillna(0), "nav": 1.0, "acc_nav": 1.0}, index=idx)
+    klines = {"usNDX": good, "usINX": bad, "whUSDCNY": pd.Series(7.0, index=idx)}
+    monkeypatch.setattr(es.mk, "tx_kline", lambda sym, n=320: klines.get(sym, bad))
+    m = es.select_model("某纳斯达克100联接", "qdii", pd.DataFrame(columns=["code", "name", "weight"]), nav)
+    assert m["components"][0]["symbol"] == "usNDX" and abs(m["components"][0]["beta"] - 0.9) < 0.05
+    assert m["fx"] is True and m["mae"] < 0.1 and len(m["check"]) == 10
+    q = {"usNDX": {"pct": 1.0, "date": "20261105"}, "whUSDCNY": {"pct": 0.1, "date": "20261106"}}
+    le = es.live_estimate(m, q)
+    expect = m["components"][0]["beta"] * ((1.01 * 1.001 - 1) * 100)
+    assert abs(le["est"] - round(expect, 2)) < 1e-9 and le["date"] == "20261105"
+
+
+def test_holding_symbol_mapping():
+    from advisor.data.market import holding_symbol
+    assert holding_symbol("600519") == "sh600519" and holding_symbol("00700") == "hk00700"
+    assert holding_symbol("700") == "hk00700" and holding_symbol("NVDA") is None
